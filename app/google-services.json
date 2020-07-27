@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "427773031292",
+    "firebase_url": "https://lazertagwars.firebaseio.com",
+    "project_id": "lazertagwars",
+    "storage_bucket": "lazertagwars.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:427773031292:android:8549f7084b0fa6208b6af9",
+        "android_client_info": {
+          "package_name": "com.lazerwars2563"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "427773031292-935cs0lag6suurcih85sbnivtns0lhf1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.lazerwars2563",
+            "certificate_hash": "e1e77a0af8338c3c7d10bd5dce64c2ea8864e4ef"
+          }
+        },
+        {
+          "client_id": "427773031292-9d76vo0migce7o5vi3vnmti2osr8ito0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAxoE_X1NJcC03CrSqOQcQqkSt1DHu8UM8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "427773031292-9d76vo0migce7o5vi3vnmti2osr8ito0.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

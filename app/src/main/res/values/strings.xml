@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">LazerWars</string>
+    <string name="logout">LogOut</string>
+    <string name="profile">Profile</string>
+    <string name="create">Create</string>
+
+    <string-array name="gameTypes">
+        <item>classic</item>
+        <item>capture the flag</item>
+    </string-array>
+</resources>
