@@ -1,4 +1,4 @@
-package com.lazerwars2563.Class;
+package com.lazerwars2563.Handler;
 
 import android.app.ProgressDialog;
 import android.content.Context;
@@ -15,6 +15,7 @@ import com.google.firebase.storage.FileDownloadTask;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
+import com.lazerwars2563.adapters.MessageAdapter;
 
 import java.io.File;
 import java.io.IOException;
@@ -37,6 +38,8 @@ public class AudioHandler {
 
     private StorageReference mStorageRef;
     private DatabaseReference roomRef;
+
+    private MessageAdapter mMessageAdapter;
 
 
     public AudioHandler(Context context, String id, String roomName,DatabaseReference roomRef) {

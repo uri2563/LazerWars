@@ -3,16 +3,19 @@ package com.lazerwars2563.Activitys;
 import androidx.annotation.NonNull;
 import androidx.cardview.widget.CardView;
 import androidx.collection.ArraySet;
+import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.FragmentActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import android.Manifest;
 import android.animation.ObjectAnimator;
 import android.app.ActivityManager;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Bundle;
 import android.util.DisplayMetrics;
@@ -47,15 +50,15 @@ import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QuerySnapshot;
 import com.google.maps.android.clustering.ClusterManager;
-import com.lazerwars2563.Class.AudioHandler;
+import com.lazerwars2563.Handler.AudioHandler;
 import com.lazerwars2563.Class.ClusterMarker;
 import com.lazerwars2563.Class.GeoSpot;
 import com.lazerwars2563.Class.Message;
 import com.lazerwars2563.Class.PlayerData;
 import com.lazerwars2563.Class.PlayerViewer;
-import com.lazerwars2563.Class.Room;
+import com.lazerwars2563.Handler.GameMakerHandler;
+import com.lazerwars2563.Handler.MessagesHandler;
 import com.lazerwars2563.adapters.MessageAdapter;
-import com.lazerwars2563.adapters.RoomsAdapter;
 import com.lazerwars2563.services.DataService;
 import com.lazerwars2563.util.MyClusterManagerRenderer;
 import com.lazerwars2563.util.UserClient;
@@ -114,14 +117,14 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
     private static final double MapZoom = 0.005;//smaller the value bigger the map zoom
 
     //cluster marker
-    private ClusterManager clusterManager;
-    private MyClusterManagerRenderer clusterManagerRenderer;
-    private Map<String,ClusterMarker> clusterMarkers = new HashMap<>();//list of marker currently on the map
+    GameMakerHandler gameMakerHandler;
+
+    MessagesHandler messagesHandler;
 
     private UserDetails user;
     private PlayerViewer userData;
 
-    private Map<String,PlayerData> players = new HashMap<>();
+    private Map<String, PlayerData> players = new HashMap<>();
 
     private ValueEventListener userListener;
     private Intent dataServiceIntent;
@@ -130,9 +133,6 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
     private String audioTo;
 
     private ImageButton recordButton;
-
-    private RecyclerView recyclerView;
-    private MessageAdapter mMessageAdapter;
 
     private int[] teamsColorArray;
 
@@ -147,7 +147,7 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
 
         //set spinner
         Spinner spinnerType = findViewById(R.id.audio_to_spinner);
-        ArrayAdapter<CharSequence> spinnerAdapter = ArrayAdapter.createFromResource(this,R.array.audio_to,android.R.layout.simple_spinner_item);
+        ArrayAdapter<CharSequence> spinnerAdapter = ArrayAdapter.createFromResource(this, R.array.audio_to, android.R.layout.simple_spinner_item);
         spinnerAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerType.setAdapter(spinnerAdapter);
         spinnerType.setOnItemSelectedListener(new AudioSpinnerClass());
@@ -160,6 +160,14 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         //set RealTime db
         database = FirebaseDatabase.getInstance();
         roomRef = database.getReference("Rooms");
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            Log.e(TAG, "couldnt fined permission ACCESS_FINE_LOCATION");
+            return;
+        }
         googleMap.setMyLocationEnabled(true);
         mGoogleMap = googleMap;
 
@@ -173,57 +181,22 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
 
         UpdateUserData();//for the first time
 
-        SetChat();
+        //SetChat();
+        RecyclerView recyclerView = findViewById(R.id.recyclerview_messages);
+        messagesHandler = new MessagesHandler(GameActivity.this, recyclerView, roomRef, roomName, userData);
     }
 
     private void SetScoreView() {
         teamsColorArray = GameActivity.this.getResources().getIntArray(R.array.TeamsColor);
-        Log.d(TAG,"SetScoreView: the userTeam: "+ userData.getTeam());
+        Log.d(TAG, "SetScoreView: the userTeam: " + userData.getTeam());
         CardView scoreCard = findViewById(R.id.score_card_view);
         scoreCard.setCardBackgroundColor(teamsColorArray[userData.getTeam()]);
     }
 
-    private boolean IsMessageToMe(String t)
-    {
-        if(t.equals(userData.getId()) || t.equals(Integer.toString(userData.getTeam()))|| t.equals("all"))
-        {
-            return true;
-        }
-        return false;
-    }
-
-    private void SetChat() {
-        Log.d(TAG,"setUpRecyclerView ");
-        recyclerView = findViewById(R.id.recyclerview_messages);
-        recyclerView.setHasFixedSize(true);
-        LinearLayoutManager linearLayoutManager = new LinearLayoutManager(this);
-        //linearLayoutManager.setStackFromEnd(true);
-        recyclerView.setLayoutManager(linearLayoutManager);
-        messageRef = roomRef.child(roomName).child("Messages");
-
-        messageRef.addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(DataSnapshot dataSnapshot) {
-                ArrayList<Message> arrayList = new ArrayList<>();
-                for (DataSnapshot eventSnapshot : dataSnapshot.getChildren()) {
-                    if(IsMessageToMe(eventSnapshot.getValue(Message.class).getTo()))
-                    {arrayList.add(eventSnapshot.getValue(Message.class));}
-                }
-                mMessageAdapter = new MessageAdapter(arrayList, GameActivity.this,userData);
-                recyclerView.setAdapter(mMessageAdapter);
-                recyclerView.smoothScrollToPosition(mMessageAdapter.getItemCount() - 1);//scroll to end
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-
-            }
-        });
-    }
-
     private ArraySet<String> audioDownLoaded;//keep trak of what has been downloaded allready
+
     private void SetVoiceMessage() {
-        audioHandler = new AudioHandler(this,userData.getId(), roomName, roomRef);//
+        audioHandler = new AudioHandler(this, userData.getId(), roomName, roomRef);//
         audioDownLoaded = new ArraySet<>();
 
         recordButton = findViewById(R.id.record_button);
@@ -231,7 +204,7 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         recordButton.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
-                switch(event.getAction()) {
+                switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
                         // PRESSED
                         audioHandler.startRecording();
@@ -246,13 +219,12 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
                 return false;
             }
         });
-
         roomRef.child(roomName).child("chat").addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 Log.d(TAG, "CreateUserListener: updating The Players Data from database");
                 for (DataSnapshot data : snapshot.getChildren()) {
-                    if(!audioDownLoaded.contains(data.getKey())) {
+                    if (!audioDownLoaded.contains(data.getKey())) {
                         audioDownLoaded.add(data.getKey());
                         String to = audioHandler.getName(data.getKey());
                         if (to.equals("all") || to.equals(Integer.toString(userData.getTeam())))//check that this is intended to me (to all or to team)
@@ -265,12 +237,10 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
             public void onCancelled(@NonNull DatabaseError error) {
             }
         });
-
     }
 
     //change map size
-    private void changeSize()
-    {
+    private void changeSize() {
         mMapContainer = findViewById(R.id.relative_layout_map);
         mMainContainer = findViewById(R.id.relative_layout_main);
 
@@ -283,45 +253,25 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     //create the listener for the users data
-    private void CreateUserListener()
-    {
-        Log.d(TAG,"CreateUserListener: UserListener initiated");
-        usersRef = database.getReference("Rooms/"+roomName+"/users");
+    private void CreateUserListener() {
+        Log.d(TAG, "CreateUserListener: UserListener initiated");
+        usersRef = database.getReference("Rooms/" + roomName + "/users");
         userListener = usersRef.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
-                Log.d(TAG,"CreateUserListener: updating The Players Data from database");
+                Log.d(TAG, "CreateUserListener: updating The Players Data from database");
                 for (DataSnapshot data : snapshot.getChildren()) {
                     PlayerData player = data.getValue(PlayerData.class);
                     UpdataPlayersDataFromDb(player);
                 }
-                MoveMapMarkers();
+                //MoveMapMarkers();
+                gameMakerHandler.MoveMapMarkers();
                 //Show UserData in view
-            }
-
-            private void MoveMapMarkers() {
-                Log.d(TAG,"MoveMapMarkers: moving Markers");
-                clusterManager.clearItems();
-                mGoogleMap.clear();
-                for (Map.Entry<String, ClusterMarker> marker : clusterMarkers.entrySet()) {
-                    if(players.containsKey(marker.getKey()))
-                        {
-                        Log.d(TAG, "MoveMapMarkers: marker: "+ marker.getValue().toString());
-                        PlayerData player = players.get(marker.getKey());
-                        marker.getValue().setPosition(new LatLng(player.getGeoSpot().getLatitude(), player.getGeoSpot().getLongitude()));
-                        marker.getValue().setSnippet("Score: " + marker.getValue());
-                        Log.d(TAG, "MoveMapMarkers: after: "+ marker.getValue().toString());
-                        ClusterMarker newMarker = new ClusterMarker(marker.getValue());
-
-                        clusterManager.addItem(newMarker);//
-                    }
-                }
-                clusterManager.cluster();
             }
 
             private void UpdataPlayersDataFromDb(PlayerData player) {
                 //update players info
-                players.put(player.getUserId(),player);
+                players.put(player.getUserId(), player);
             }
 
             @Override
@@ -331,13 +281,6 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         });
     }
 
-    private void SendMessage(Message message) {
-        Long tsLong = System.currentTimeMillis()/1000;
-        String ts = tsLong.toString();
-
-        //set gameInfo
-        roomRef.child(roomName).child("Messages").child(userData.getId() + "-" + ts).setValue(message);
-    }
     //gets the teams and user map from fireStore server
     private void GetFireStoreData() {
         // Access a Cloud FireStore instance from your Activity
@@ -358,49 +301,44 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         roomStoreRef.collection("Players").get().addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
             @Override
             public void onComplete(@NonNull Task<QuerySnapshot> task) {
-                if(task.isSuccessful() && task.getResult() != null)
-                {
-                    Log.d(TAG,"copying data from fireStore");
+                if (task.isSuccessful() && task.getResult() != null) {
+                    Log.d(TAG, "copying data from fireStore");
                     List<PlayerViewer> downloadInfoList = task.getResult().toObjects(PlayerViewer.class);
                     for (PlayerViewer playerInfo : downloadInfoList) {
-                        if(playerInfo.getId().equals( userData.getId()))//set my team
+                        if (playerInfo.getId().equals(userData.getId()))//set my team
                         {
                             userData.setTeam(playerInfo.getTeam());
                         }
-                        teamsMap.put(playerInfo.getId(),playerInfo.getTeam());
-                        usersNameMap.put(playerInfo.getId(),playerInfo.getName());
+                        teamsMap.put(playerInfo.getId(), playerInfo.getTeam());
+                        usersNameMap.put(playerInfo.getId(), playerInfo.getName());
                         LoadImage(playerInfo.getId());
                     }
                     //create markers for players
-                    addMapMarkers();
+                    gameMakerHandler = new GameMakerHandler( players, userData, mGoogleMap, GameActivity.this,  teamsMap,  usersNameMap,  imageMap, showAll);
 
                     SetScoreView();
 
-                    if(isAdmin)
-                    {
-                        SendMessage(new Message("all", "Start Game!!!"));
+                    if (isAdmin) {
+                        messagesHandler.SendMessage(new Message("all", "Start Game!!!"));
                     }
-                }
-                else
-                {
-                    Log.d(TAG,"get failed with", task.getException());
+                } else {
+                    Log.d(TAG, "get failed with", task.getException());
                     //retry?
                 }
             }
         });
     }
 
-    private void LoadImage(String id){
+    private void LoadImage(String id) {
         ContextWrapper cw = new ContextWrapper(getApplicationContext());
         File directory = cw.getDir("imageDir", Context.MODE_PRIVATE);
         File myFile = new File(directory, id + ".jpg");
         if (myFile.exists()) {
-            Log.d(TAG,"LoadImage: getting icon as int");
-            imageMap.put(id,myFile.getAbsolutePath());
-        }
-        else {
-            imageMap.put(id,"");
-            Log.d(TAG,"LoadImage: no image for " + id);
+            Log.d(TAG, "LoadImage: getting icon as int");
+            imageMap.put(id, myFile.getAbsolutePath());
+        } else {
+            imageMap.put(id, "");
+            Log.d(TAG, "LoadImage: no image for " + id);
         }
     }
 
@@ -409,22 +347,22 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         user = UserClient.getInstance().getUser();
         UserClient.getInstance().setCurrentRoom(roomName);
         UserClient.getInstance().setCurrentScore(score);
-        userData = new PlayerViewer(user.getUserName(),user.getUserId());
+        userData = new PlayerViewer(user.getUserName(), user.getUserId());
     }
+
     //gets data sent by last activity
     private void GetExtras() {
         Bundle extras = getIntent().getExtras();
-        roomName=extras.getString("name");
-        gameType=extras.getString("game");
-        isAdmin=extras.getBoolean("admin");
+        roomName = extras.getString("name");
+        gameType = extras.getString("game");
+        isAdmin = extras.getBoolean("admin");
     }
+
     //starts the map view and prossess
-    private void initGoogleMap(Bundle savedInstanceState)
-    {
+    private void initGoogleMap(Bundle savedInstanceState) {
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
         Bundle mapViewBundle = null;
-        if(savedInstanceState != null)
-        {
+        if (savedInstanceState != null) {
             mapViewBundle = savedInstanceState.getBundle(MAPVIEW_BUNDLE_KEY);
         }
 
@@ -437,16 +375,18 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
 
     //updates in app and calls SaveUserDataInDb to save in db
     //to update Score just change score and call updateUserData
-    private void UpdateUserData()
-    {
-        Log.d(TAG,"UpdateUserData Called");
+    private void UpdateUserData() {
+        Log.d(TAG, "UpdateUserData Called");
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
         fusedLocationProviderClient.getLastLocation().addOnCompleteListener(new OnCompleteListener<Location>() {
             @Override
             public void onComplete(@NonNull Task<Location> task) {
-                if(task.isSuccessful())
-                {
+                if (task.isSuccessful()) {
                     Location location = task.getResult();
-                    GeoSpot geoPoint = new GeoSpot(location.getLatitude(),location.getLongitude());
+                    GeoSpot geoPoint = new GeoSpot(location.getLatitude(), location.getLongitude());
 
                     myData.setGeoSpot(geoPoint);
                     myData.setTimestamp(null);
@@ -495,56 +435,6 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
 
         mGoogleMap.moveCamera(CameraUpdateFactory.newLatLngBounds(mapBoundary,0));
     }
-
-    //set players makers
-    //Debug - set Image and team Color
-    private void addMapMarkers()
-    {
-        Log.d(TAG, "addMapMarkers: Creating Markers size: " + usersNameMap.size());
-        if(mGoogleMap != null) {
-            if (clusterManager == null) {
-                clusterManager = new ClusterManager<ClusterMarker>(this.getApplicationContext(), mGoogleMap);
-            }
-            if(clusterManagerRenderer == null)
-            {
-                clusterManagerRenderer = new MyClusterManagerRenderer(
-                        this,
-                        mGoogleMap,
-                        clusterManager
-                );
-                clusterManager.setRenderer(clusterManagerRenderer);
-            }
-            for (Map.Entry<String, String> entry1 : usersNameMap.entrySet()) {
-                String id = entry1.getKey();
-                String name = entry1.getValue();
-                int team = teamsMap.get(id);//can set color of team in the background
-                Log.d(TAG, "addMapMarkers: add marker: "+ name);
-                Log.d(TAG, "addMapMarkers: my team: "+ userData.getTeam());
-                //if not current user
-                if (!id.equals(userData.getId()) && (showAll || (team == userData.getTeam())))
-                    {//show only members of the same team
-                    try {
-                        String snippet = "Score: 0";//: " + player.getScore();
-                        String avatar = imageMap.get(id) ;
-                        ClusterMarker newClusterMarker = new ClusterMarker(
-                                team,
-                                new LatLng(0,0),
-                                name,
-                                snippet,
-                                avatar,
-                                id
-                        );
-                        clusterManager.addItem(newClusterMarker);
-                        clusterMarkers.put(id,newClusterMarker);
-                    } catch (NumberFormatException e) {
-                        Log.e(TAG, "addMapMarkers: NullPointerException: " + e.getMessage());
-                    }
-                }
-            }
-            clusterManager.cluster();
-        }
-    }
-
 
     private void startDataService(){
         if(!isDataServiceRunning()){
