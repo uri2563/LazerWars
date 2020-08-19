@@ -56,9 +56,12 @@ import com.lazerwars2563.Class.GeoSpot;
 import com.lazerwars2563.Class.Message;
 import com.lazerwars2563.Class.PlayerData;
 import com.lazerwars2563.Class.PlayerViewer;
+import com.lazerwars2563.Handler.GameDatabaseHandler;
 import com.lazerwars2563.Handler.GameMakerHandler;
+import com.lazerwars2563.Handler.GameMapHandler;
 import com.lazerwars2563.Handler.MessagesHandler;
 import com.lazerwars2563.adapters.MessageAdapter;
+import com.lazerwars2563.services.CustomTimer;
 import com.lazerwars2563.services.DataService;
 import com.lazerwars2563.util.MyClusterManagerRenderer;
 import com.lazerwars2563.util.UserClient;
@@ -74,19 +77,19 @@ import java.util.Map;
 
 import static com.lazerwars2563.util.Constants.MAPVIEW_BUNDLE_KEY;
 
-public class GameActivity extends FragmentActivity implements OnMapReadyCallback, View.OnTouchListener {
+public class GameActivity extends FragmentActivity implements OnMapReadyCallback {
     private static String TAG = "GameActivity";
 
     private boolean showAll = false;
 
-    private ImageView dragView;
-    float window_height;
-
     private boolean isAdmin;
     int score = 0;
 
+    //map
     private RelativeLayout mMapContainer;
     private RelativeLayout mMainContainer;
+    private ImageView dragView;
+    private MapView mapView;
 
     //fireStore db
     private FirebaseFirestore db;
@@ -96,7 +99,6 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
     private FirebaseDatabase database;
     private DatabaseReference roomRef;
     private DatabaseReference usersRef;
-    private DatabaseReference messageRef;
 
     //players maps:
     private Map<String, Integer> teamsMap;
@@ -106,10 +108,10 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
     private String roomName;
     private String gameType;
 
-    private MapView mapView;
-    private FusedLocationProviderClient fusedLocationProviderClient;
+
     //map
     private PlayerData myData;
+
     private GoogleMap mGoogleMap;
     private LatLngBounds mapBoundary;
 
@@ -117,9 +119,13 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
     private static final double MapZoom = 0.005;//smaller the value bigger the map zoom
 
     //cluster marker
-    GameMakerHandler gameMakerHandler;
+    private GameMakerHandler gameMakerHandler;
 
-    MessagesHandler messagesHandler;
+    private MessagesHandler messagesHandler;
+
+    private GameDatabaseHandler gameDatabaseHandler;
+
+    private GameMapHandler gameMapHandler;
 
     private UserDetails user;
     private PlayerViewer userData;
@@ -127,7 +133,6 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
     private Map<String, PlayerData> players = new HashMap<>();
 
     private ValueEventListener userListener;
-    private Intent dataServiceIntent;
 
     private AudioHandler audioHandler;
     private String audioTo;
@@ -142,8 +147,28 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         setContentView(R.layout.activity_game);
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_NOSENSOR);//dont allow rotation
 
-        initGoogleMap(savedInstanceState);
-        changeSize();
+        //set RealTime db
+        database = FirebaseDatabase.getInstance();
+        roomRef = database.getReference("Rooms");
+
+        //get extra
+        Bundle extras = getIntent().getExtras();
+        roomName = extras.getString("name");
+        gameType = extras.getString("game");
+        isAdmin = extras.getBoolean("admin");
+
+        UserDetails();
+        //get all data from firestore
+        GetFireStoreData();
+        myData = new PlayerData(userData.getId());
+
+        mMapContainer = findViewById(R.id.relative_layout_map);
+        mMainContainer = findViewById(R.id.relative_layout_main);
+        dragView = findViewById(R.id.dragView);
+        mapView = findViewById(R.id.map_view);
+
+        //initGoogleMap(savedInstanceState);
+        gameMapHandler = new GameMapHandler( mapView, this, this,mMapContainer,mMainContainer,dragView,savedInstanceState);
 
         //set spinner
         Spinner spinnerType = findViewById(R.id.audio_to_spinner);
@@ -157,9 +182,6 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
-        //set RealTime db
-        database = FirebaseDatabase.getInstance();
-        roomRef = database.getReference("Rooms");
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
                 && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -171,20 +193,45 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         googleMap.setMyLocationEnabled(true);
         mGoogleMap = googleMap;
 
-        //get game Data
-        GetExtras();
-        UserDetails();
-        GetFireStoreData();
-        myData = new PlayerData(userData.getId());
-
         SetVoiceMessage();
 
-        UpdateUserData();//for the first time
+        //create markers for players
+        gameMakerHandler = new GameMakerHandler( userData, mGoogleMap, GameActivity.this,  teamsMap,  usersNameMap,  imageMap, showAll);
+        //set listeners to database
+        gameDatabaseHandler = new GameDatabaseHandler( gameMakerHandler ,database,  roomRef,  roomName,  userData, GameActivity.this);
+        gameDatabaseHandler.setListener(new CustomTimer.ChangeListener() {
+            @Override
+            public void onChange() {
+                players = gameDatabaseHandler.getPlayers();
+                gameMakerHandler.MoveMapMarkers(players);
+            }
+        });
+
+        //finish game map handler
+        gameMapHandler.setGameDatabaseHandler(gameDatabaseHandler);
+        gameMapHandler.UpdateUserData(userData.getId(),score,mGoogleMap);//for the first time
+
+        SetScoreView();
 
         //SetChat();
         RecyclerView recyclerView = findViewById(R.id.recyclerview_messages);
         messagesHandler = new MessagesHandler(GameActivity.this, recyclerView, roomRef, roomName, userData);
+
+        //Debug: do it in startgame
+        if (isAdmin) {
+            messagesHandler.SendMessage(new Message("all", "Start Game!!!"));
+        }
+
     }
+
+    //gets and sets UserDetails - need to call only once
+    private void UserDetails() {
+        user = UserClient.getInstance().getUser();
+        UserClient.getInstance().setCurrentRoom(roomName);
+        UserClient.getInstance().setCurrentScore(score);
+        userData = new PlayerViewer(user.getUserName(), user.getUserId());
+    }
+
 
     private void SetScoreView() {
         teamsColorArray = GameActivity.this.getResources().getIntArray(R.array.TeamsColor);
@@ -194,7 +241,6 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
     }
 
     private ArraySet<String> audioDownLoaded;//keep trak of what has been downloaded allready
-
     private void SetVoiceMessage() {
         audioHandler = new AudioHandler(this, userData.getId(), roomName, roomRef);//
         audioDownLoaded = new ArraySet<>();
@@ -239,49 +285,7 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         });
     }
 
-    //change map size
-    private void changeSize() {
-        mMapContainer = findViewById(R.id.relative_layout_map);
-        mMainContainer = findViewById(R.id.relative_layout_main);
-
-        DisplayMetrics displayMetrics = new DisplayMetrics();
-        getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
-        window_height = displayMetrics.heightPixels;
-
-        dragView = findViewById(R.id.dragView);
-        dragView.setOnTouchListener(this);
-    }
-
-    //create the listener for the users data
-    private void CreateUserListener() {
-        Log.d(TAG, "CreateUserListener: UserListener initiated");
-        usersRef = database.getReference("Rooms/" + roomName + "/users");
-        userListener = usersRef.addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                Log.d(TAG, "CreateUserListener: updating The Players Data from database");
-                for (DataSnapshot data : snapshot.getChildren()) {
-                    PlayerData player = data.getValue(PlayerData.class);
-                    UpdataPlayersDataFromDb(player);
-                }
-                //MoveMapMarkers();
-                gameMakerHandler.MoveMapMarkers();
-                //Show UserData in view
-            }
-
-            private void UpdataPlayersDataFromDb(PlayerData player) {
-                //update players info
-                players.put(player.getUserId(), player);
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-
-            }
-        });
-    }
-
-    //gets the teams and user map from fireStore server
+    //init teamsMap usersNameMap imageMap
     private void GetFireStoreData() {
         // Access a Cloud FireStore instance from your Activity
         db = FirebaseFirestore.getInstance();
@@ -313,14 +317,6 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
                         usersNameMap.put(playerInfo.getId(), playerInfo.getName());
                         LoadImage(playerInfo.getId());
                     }
-                    //create markers for players
-                    gameMakerHandler = new GameMakerHandler( players, userData, mGoogleMap, GameActivity.this,  teamsMap,  usersNameMap,  imageMap, showAll);
-
-                    SetScoreView();
-
-                    if (isAdmin) {
-                        messagesHandler.SendMessage(new Message("all", "Start Game!!!"));
-                    }
                 } else {
                     Log.d(TAG, "get failed with", task.getException());
                     //retry?
@@ -342,125 +338,6 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
-    //gets and sets UserDetails - need to call only once
-    private void UserDetails() {
-        user = UserClient.getInstance().getUser();
-        UserClient.getInstance().setCurrentRoom(roomName);
-        UserClient.getInstance().setCurrentScore(score);
-        userData = new PlayerViewer(user.getUserName(), user.getUserId());
-    }
-
-    //gets data sent by last activity
-    private void GetExtras() {
-        Bundle extras = getIntent().getExtras();
-        roomName = extras.getString("name");
-        gameType = extras.getString("game");
-        isAdmin = extras.getBoolean("admin");
-    }
-
-    //starts the map view and prossess
-    private void initGoogleMap(Bundle savedInstanceState) {
-        fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
-        Bundle mapViewBundle = null;
-        if (savedInstanceState != null) {
-            mapViewBundle = savedInstanceState.getBundle(MAPVIEW_BUNDLE_KEY);
-        }
-
-        // Gets the MapView from the XML layout and creates it
-        mapView = findViewById(R.id.map_view);
-        mapView.onCreate(savedInstanceState);
-
-        mapView.getMapAsync(GameActivity.this);
-    }
-
-    //updates in app and calls SaveUserDataInDb to save in db
-    //to update Score just change score and call updateUserData
-    private void UpdateUserData() {
-        Log.d(TAG, "UpdateUserData Called");
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
-                && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
-        fusedLocationProviderClient.getLastLocation().addOnCompleteListener(new OnCompleteListener<Location>() {
-            @Override
-            public void onComplete(@NonNull Task<Location> task) {
-                if (task.isSuccessful()) {
-                    Location location = task.getResult();
-                    GeoSpot geoPoint = new GeoSpot(location.getLatitude(), location.getLongitude());
-
-                    myData.setGeoSpot(geoPoint);
-                    myData.setTimestamp(null);
-                    myData.setScore(score);
-
-                    UserClient.getInstance().setCurrentScore(score);
-                    SetCameraView();
-
-                    SaveUserDataInDb();
-                }
-            }
-        });
-    }
-
-    //saves manually (only once) first data of the current user
-    //and calls the CreateUserListener func
-    //will start the DataService (calls startLocationService func)
-    boolean firstInit = true;
-    private void SaveUserDataInDb()
-    {
-        roomRef.child(roomName).child("users").child(userData.getId()).setValue(myData).addOnSuccessListener(new OnSuccessListener<Void>() {
-            @Override
-            public void onSuccess(Void aVoid) {
-                if(firstInit)
-                {
-                    firstInit = false;
-                    CreateUserListener();
-                    startDataService();
-                }
-            }
-        });
-    }
-    //creates the map bounds
-    private void SetCameraView()
-    {
-
-        double bottomBoundary = myData.getGeoSpot().getLatitude() - MapZoom;
-        double leftBoundary = myData.getGeoSpot().getLongitude() - MapZoom;
-        double topBoundary = myData.getGeoSpot().getLatitude() + MapZoom;
-        double rightBoundary = myData.getGeoSpot().getLongitude() + MapZoom;
-
-        mapBoundary = new LatLngBounds(
-                new LatLng(bottomBoundary,leftBoundary),
-                new LatLng(topBoundary,rightBoundary)
-        );
-
-        mGoogleMap.moveCamera(CameraUpdateFactory.newLatLngBounds(mapBoundary,0));
-    }
-
-    private void startDataService(){
-        if(!isDataServiceRunning()){
-            dataServiceIntent = new Intent(this, DataService.class);
-//        this.startService(serviceIntent);
-            Log.d(TAG,"startLocationService: StartLocationService");
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O){
-
-                GameActivity.this.startForegroundService(dataServiceIntent);
-            }else{
-                startService(dataServiceIntent);
-            }
-        }
-    }
-
-    private boolean isDataServiceRunning() {
-        ActivityManager manager = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
-        for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)){
-            if("com.codingwithmitch.googledirectionstest.services.LocationService".equals(service.service.getClassName())) {
-                Log.d(TAG, "isLocationServiceRunning: location service is already running.");
-                return true;
-            }
-        }
-        Log.d(TAG, "isLocationServiceRunning: location service is not running.");
-        return false;
-    }
     //Debug check why not working
     private void RemoveListenersAndServices()
     {
@@ -468,11 +345,7 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
             Log.d(TAG,"RemoveListenersAndServices: removing listeners");
             usersRef.removeEventListener(userListener);
         }
-        if(isDataServiceRunning())
-        {
-            Log.d(TAG,"RemoveListenersAndServices: Stop services");
-            stopService(dataServiceIntent);
-        }
+        gameDatabaseHandler.stopDataService();
     }
 
     class AudioSpinnerClass implements AdapterView.OnItemSelectedListener
@@ -529,47 +402,4 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         super.onLowMemory();
     }
 
-    int map_current_weight = 50;
-    private void moveMapAnimation(float drag, float height){
-        int map_new_weight = (int) drag;
-        Log.d(TAG, "window_height - map_new_weight: " + (window_height - map_new_weight));
-
-        if(window_height - map_new_weight >= 50)//dont let the map dissapear
-        {
-        ViewWeightAnimationWrapper mapAnimationWrapper = new ViewWeightAnimationWrapper(mMapContainer);
-        ObjectAnimator mapAnimation = ObjectAnimator.ofFloat(mapAnimationWrapper,
-                "weight",
-                map_current_weight,
-                map_new_weight);
-        mapAnimation.setDuration(0);
-
-        ViewWeightAnimationWrapper recyclerAnimationWrapper = new ViewWeightAnimationWrapper(mMainContainer);
-        ObjectAnimator recyclerAnimation = ObjectAnimator.ofFloat(recyclerAnimationWrapper,
-                "weight",
-                window_height - height - map_new_weight,
-                window_height - height - map_current_weight);
-        recyclerAnimation.setDuration(0);
-        map_current_weight = map_new_weight;
-        recyclerAnimation.start();
-        mapAnimation.start();
-        }
-    }
-
-    private float dY;
-    @Override
-    public boolean onTouch(View v, MotionEvent event) {
-        if (v.getId() == R.id.dragView) {
-            switch (event.getAction())
-            {
-                case MotionEvent.ACTION_DOWN:
-                    dY = v.getY() - event.getRawY();
-
-                case MotionEvent.ACTION_MOVE:
-                    moveMapAnimation(event.getRawY() + dY, v.getHeight());
-            }
-
-            return true;
-        }
-        return false;
-    }
 }

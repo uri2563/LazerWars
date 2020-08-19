@@ -23,7 +23,6 @@ public class GameMakerHandler {
     private Map<String, ClusterMarker> clusterMarkers = new HashMap<>();//list of marker currently on the map
 
     //getting from activity
-    private Map<String, PlayerData> players;
     private PlayerViewer userData;
     private GoogleMap mGoogleMap;
     private Context context;
@@ -34,9 +33,8 @@ public class GameMakerHandler {
 
     private boolean showAll;
 
-    public GameMakerHandler(Map<String, PlayerData> players, PlayerViewer userData, GoogleMap mGoogleMap,
+    public GameMakerHandler(PlayerViewer userData, GoogleMap mGoogleMap,
                             Context context, Map<String, Integer> teamsMap, Map<String, String> usersNameMap, Map<String, String> imageMap, boolean showAll) {
-        this.players = players;
         this.userData = userData;
         this.mGoogleMap = mGoogleMap;
         this.context = context;
@@ -96,7 +94,7 @@ public class GameMakerHandler {
         }
     }
 
-    public void MoveMapMarkers() {
+    public void MoveMapMarkers(Map<String, PlayerData> players) {
         Log.d(TAG, "MoveMapMarkers: moving Markers");
         clusterManager.clearItems();
         mGoogleMap.clear();
