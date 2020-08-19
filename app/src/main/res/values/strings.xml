@@ -8,4 +8,22 @@
         <item>classic</item>
         <item>capture the flag</item>
     </string-array>
+
+    <string-array name="booleanOptions">
+        <item>show only players in the same team</item>
+        <item>show all players</item>
+    </string-array>
+
+    <string-array name="audio_to">
+        <item>all</item>
+        <item>team</item>
+    </string-array>
+
+    <string-array name="TeamsName">
+        <item>Team Blue</item>
+        <item>Team Red</item>
+        <item>Team Green</item>
+        <item>Team Yellow</item>
+    </string-array>
+    <string name="title_activity_maps">Map</string>
 </resources>

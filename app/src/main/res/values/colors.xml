@@ -5,4 +5,15 @@
     <color name="colorAccent">#555555</color>
     <color name="colorBackGround">#FFFFFF</color>
     <color name="ColorText">#FFFFFF</color>
+    <color name="ColorLightYellow">#EFE7B3</color>
+
+
+    <array name="TeamsColor">
+        <item>#0400FF</item>
+        <item>#FF0000</item>
+        <item>#11FF00</item>
+        <item>#FFE600</item>
+    </array>
+
+
 </resources>

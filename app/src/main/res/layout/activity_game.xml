@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".Activitys.GameActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+
+        <RelativeLayout
+            android:id="@+id/relative_layout_main"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_weight="50">
+
+            <androidx.cardview.widget.CardView
+                android:id="@+id/score_card_view"
+                android:layout_width="wrap_content"
+                android:layout_height="60dp"
+                android:layout_margin="10dp"
+                app:cardCornerRadius="10dp"
+                android:layout_above="@+id/recyclerview_messages"
+                android:layout_centerHorizontal="true">
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent">
+                <RelativeLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_centerHorizontal="true"
+                    android:layout_centerVertical="true">
+                    <TextView
+                        android:id="@+id/text"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:gravity="center"
+                        android:layout_margin="4dp"
+                        android:textStyle="bold"
+                        android:text="Score:"
+                        android:textSize="22dp" />
+                    <TextView
+                        android:id="@+id/text_score"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:layout_margin="4dp"
+                        android:layout_toRightOf="@+id/text"
+                        android:gravity="center"
+                        android:textStyle="bold"
+                        android:text="0"
+                        android:textSize="22dp" />
+                </RelativeLayout>
+                </RelativeLayout>
+            </androidx.cardview.widget.CardView>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/recyclerview_messages"
+                android:layout_width="match_parent"
+                android:layout_height="150dp"
+                android:layout_above="@+id/record_button"></androidx.recyclerview.widget.RecyclerView>
+
+            <Spinner
+                android:id="@+id/audio_to_spinner"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentBottom="true"
+                android:layout_centerHorizontal="true"
+                android:layout_marginTop="10dp"
+                android:layout_marginBottom="10dp"
+                android:gravity="center"
+                android:padding="10dp"
+                android:textAlignment="center" />
+
+            <androidx.appcompat.widget.AppCompatImageButton
+                android:id="@+id/record_button"
+                android:layout_width="70dp"
+                android:layout_height="70dp"
+                android:layout_above="@id/audio_to_spinner"
+                android:layout_centerHorizontal="true"
+                android:src="@drawable/ic_mic_black_24dp"></androidx.appcompat.widget.AppCompatImageButton>
+        </RelativeLayout>
+
+        <androidx.appcompat.widget.AppCompatImageView
+            android:id="@+id/dragView"
+            android:layout_width="match_parent"
+            android:layout_height="12dp"
+            android:layout_centerHorizontal="true"
+            android:background="@color/cardview_dark_background"
+            android:src="@drawable/ic_up_20dp"></androidx.appcompat.widget.AppCompatImageView>
+
+        <RelativeLayout
+            android:id="@+id/relative_layout_map"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_weight="50">
+
+            <com.google.android.gms.maps.MapView
+                android:id="@+id/map_view"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"></com.google.android.gms.maps.MapView>
+
+        </RelativeLayout>
+
+
+    </LinearLayout>
+
+</RelativeLayout>
