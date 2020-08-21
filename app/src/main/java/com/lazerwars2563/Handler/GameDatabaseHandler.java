@@ -1,6 +1,5 @@
 package com.lazerwars2563.Handler;
 
-import android.app.ActivityManager;
 import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
@@ -13,10 +12,8 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
-import com.lazerwars2563.Activitys.GameActivity;
-import com.lazerwars2563.Class.PlayerData;
+import com.lazerwars2563.Class.PlayerLocationData;
 import com.lazerwars2563.Class.PlayerViewer;
-import com.lazerwars2563.services.CustomTimer;
 import com.lazerwars2563.services.DataService;
 
 import java.util.HashMap;
@@ -25,11 +22,14 @@ import java.util.Map;
 public class GameDatabaseHandler {
     private static String TAG = "GameDatabaseHandler";
 
-    private CustomTimer.ChangeListener listener;
+    private GameDatabaseHandler.ChangeListener listener;
     private Intent dataServiceIntent;
 
+    private ValueEventListener userListener;
+    private DatabaseReference usersRef;
+
     //from activity
-    private Map<String, PlayerData> players;
+    private Map<String, PlayerLocationData> players;
     private GameMakerHandler gameMakerHandler = null;
     private FirebaseDatabase database;
     private DatabaseReference roomRef;
@@ -39,7 +39,6 @@ public class GameDatabaseHandler {
 
 
     public GameDatabaseHandler(GameMakerHandler gameMakerHandler,FirebaseDatabase database, DatabaseReference roomRef, String roomName, PlayerViewer userData, Context context ) {
-        setPlayers();
         this.gameMakerHandler = gameMakerHandler;
         this.database = database;
         this.roomRef = roomRef;
@@ -52,13 +51,14 @@ public class GameDatabaseHandler {
     //create the listener for the users data
     private void CreateUserListener() {
         Log.d(TAG, "CreateUserListener: UserListener initiated");
-        DatabaseReference usersRef = database.getReference("Rooms/" + roomName + "/users");
-        ValueEventListener userListener = usersRef.addValueEventListener(new ValueEventListener() {
+        usersRef = database.getReference("Rooms/" + roomName + "/UsersLocation");
+        userListener = usersRef.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 Log.d(TAG, "CreateUserListener: updating The Players Data from database");
+                setPlayers();
                 for (DataSnapshot data : snapshot.getChildren()) {
-                    PlayerData player = data.getValue(PlayerData.class);
+                    PlayerLocationData player = data.getValue(PlayerLocationData.class);
                     players.put(player.getUserId(), player);
                 }
                 if(gameMakerHandler != null) {
@@ -74,7 +74,7 @@ public class GameDatabaseHandler {
         });
     }
     //if players change!
-    public Map<String, PlayerData> getPlayers() {
+    public Map<String, PlayerLocationData> getPlayers() {
         return players;
     }
 
@@ -82,11 +82,12 @@ public class GameDatabaseHandler {
     //and calls the CreateUserListener func
     //will start the DataService (calls startLocationService func)
     boolean firstInit = true;
-    public void SaveUserDataInDb(PlayerData myData)
+    public void SaveUserDataInDb(PlayerLocationData myData)
         {
-        roomRef.child(roomName).child("users").child(userData.getId()).setValue(myData).addOnSuccessListener(new OnSuccessListener<Void>() {
+        roomRef.child(roomName).child("UsersLocation").child(userData.getId()).setValue(myData).addOnSuccessListener(new OnSuccessListener<Void>() {
             @Override
             public void onSuccess(Void aVoid) {
+                Log.d(TAG,"SaveUserDataInDb: saving user Data in DB");
                 if(firstInit)
                 {
                     firstInit = false;
@@ -96,8 +97,9 @@ public class GameDatabaseHandler {
             }
         });
     }
-    private boolean isDataServiceRunning() {
-        ActivityManager manager = (ActivityManager)context.getSystemService(context.ACTIVITY_SERVICE);
+
+  /*  private boolean isDataServiceRunning() {
+       ActivityManager manager = (ActivityManager)context.getSystemService(context.ACTIVITY_SERVICE);
         for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)){
             if("com.codingwithmitch.googledirectionstest.services.LocationService".equals(service.service.getClassName())) {
                 Log.d(TAG, "isLocationServiceRunning: location service is already running.");
@@ -106,40 +108,33 @@ public class GameDatabaseHandler {
         }
         Log.d(TAG, "isLocationServiceRunning: location service is not running.");
         return false;
-    }
+    }*/
 
+    boolean isDataServiceRunning = false;
     private void startDataService(){
-        if(!isDataServiceRunning()){
+        if(!isDataServiceRunning){
+            isDataServiceRunning = true;
             dataServiceIntent = new Intent(context, DataService.class);
-//        this.startService(serviceIntent);
             Log.d(TAG,"startLocationService: StartLocationService");
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O){
-
-                context.startForegroundService(dataServiceIntent);
+               context.startForegroundService(dataServiceIntent);
             }else{
                 context.startService(dataServiceIntent);
             }
         }
     }
-    public void stopDataService()
-    {
-        if(isDataServiceRunning())
-        {
-            Log.d(TAG,"RemoveListenersAndServices: Stop services");
-            context.stopService(dataServiceIntent);
-        }
-    }
+
 
     public void setPlayers() {
         this.players  = new HashMap<>();
         if (listener != null) listener.onChange();
     }
 
-    public CustomTimer.ChangeListener getListener() {
+    public GameDatabaseHandler.ChangeListener getListener() {
         return listener;
     }
 
-    public void setListener(CustomTimer.ChangeListener listener) {
+    public void setListener(GameDatabaseHandler.ChangeListener listener) {
         this.listener = listener;
     }
 
@@ -147,5 +142,22 @@ public class GameDatabaseHandler {
         void onChange();
     }
 
+    public void DestroyHendler()
+    {
+        //stop service
+        if(isDataServiceRunning)
+        {
+            Log.d(TAG,"RemoveListenersAndServices: Stop services");
+            isDataServiceRunning = false;
+            context.stopService(dataServiceIntent);
+        }
+
+        if(usersRef != null && userListener != null) {//Debug - needed?
+            Log.d(TAG,"RemoveListenersAndServices: removing listeners");
+            usersRef.removeEventListener(userListener);
+        }
+    }
+
 
 }
+

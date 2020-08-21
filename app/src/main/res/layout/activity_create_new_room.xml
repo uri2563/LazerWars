@@ -96,7 +96,7 @@
         android:layout_below="@+id/showAll_options"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="30dp"
-        android:text="Choose max time for round [Minutes]" />
+        android:text="Choose getting ready time [Seconds]" />
 
     <EditText
         android:id="@+id/ready_time_input"
@@ -117,7 +117,7 @@
         android:layout_below="@+id/ready_time_input"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="30dp"
-        android:text="Choose getting ready time [Seconds]" />
+        android:text="Choose max time for round [Minutes]" />
 
     <EditText
         android:id="@+id/round_time_input"

@@ -25,14 +25,11 @@ import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.firestore.DocumentReference;
-import com.google.firebase.firestore.GeoPoint;
 import com.lazerwars2563.Class.GeoSpot;
-import com.lazerwars2563.Class.PlayerData;
+import com.lazerwars2563.Class.PlayerLocationData;
 import com.lazerwars2563.Class.UserDetails;
 import com.lazerwars2563.util.UserClient;
 
@@ -42,6 +39,9 @@ public class DataService extends Service {
     private FusedLocationProviderClient mFusedLocationClient;
     private final static long UPDATE_INTERVAL = 4 * 1000;  /* 4 secs */
     private final static long FASTEST_INTERVAL = 2 * 1000; /* 2 sec */
+
+    private LocationCallback lCallback;
+
 
     @Nullable
     @Override
@@ -71,13 +71,22 @@ public class DataService extends Service {
         }
     }
 
+
+    @Override
+    public void onDestroy() {
+        Log.d(TAG, "onDestroy: called.");
+        mFusedLocationClient.removeLocationUpdates(lCallback);
+        //customHandler.removeCallbacksAndMessages(null);
+        super.onDestroy();
+    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, "onStartCommand: called.");
         getLocation();
         return START_NOT_STICKY;
     }
-    private PlayerData userData = null;
+    private PlayerLocationData userData = null;
     private void getLocation() {
 
         // ---------------------------------- LocationRequest ------------------------------------
@@ -95,8 +104,8 @@ public class DataService extends Service {
             stopSelf();
             return;
         }
-        Log.d(TAG, "getLocation: getting location information.");
-        mFusedLocationClient.requestLocationUpdates(mLocationRequestHighAccuracy, new LocationCallback() {
+        mFusedLocationClient.requestLocationUpdates(mLocationRequestHighAccuracy, lCallback = new LocationCallback() {
+
                     @Override
                     public void onLocationResult(LocationResult locationResult) {
 
@@ -108,7 +117,7 @@ public class DataService extends Service {
                             UserDetails user = UserClient.getInstance().getUser();
                             GeoSpot geoPoint = new GeoSpot(location.getLatitude(), location.getLongitude());
                             int score = UserClient.getInstance().getCurrentScore();
-                            PlayerData newUserData = new PlayerData(geoPoint,user.getUserId(),score, null);
+                            PlayerLocationData newUserData = new PlayerLocationData(geoPoint,user.getUserId(), null);
 
                             //Update the server only if data changed
                             if(userData == null || !newUserData.equals(userData)) {
@@ -125,10 +134,10 @@ public class DataService extends Service {
                 Looper.myLooper()); // Looper.myLooper tells this to repeat forever until thread is destroyed
     }
 
-    private void SaveUserData(final PlayerData userData){
+    private void SaveUserData(final PlayerLocationData userData){
 
         try{
-            DatabaseReference usersRef = FirebaseDatabase.getInstance().getReference("Rooms/"+UserClient.getInstance().getCurrentRoom()+"/users/"+userData.getUserId());
+            DatabaseReference usersRef = FirebaseDatabase.getInstance().getReference("Rooms/"+UserClient.getInstance().getCurrentRoom()+"/UsersLocation/"+userData.getUserId());
             usersRef.setValue(userData).addOnCompleteListener(new OnCompleteListener<Void>() {
                 @Override
                 public void onComplete(@NonNull Task<Void> task) {

@@ -1,24 +1,20 @@
 package com.lazerwars2563.Activitys;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.cardview.widget.CardView;
 import androidx.collection.ArraySet;
 import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.FragmentActivity;
-import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
-import android.animation.ObjectAnimator;
-import android.app.ActivityManager;
 import android.content.Context;
 import android.content.ContextWrapper;
-import android.content.Intent;
+import android.content.DialogInterface;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
-import android.location.Location;
 import android.os.Bundle;
-import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
@@ -28,17 +24,12 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.Spinner;
+import android.widget.TextView;
 
-import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapView;
 import com.google.android.gms.maps.OnMapReadyCallback;
-import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -49,33 +40,23 @@ import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QuerySnapshot;
-import com.google.maps.android.clustering.ClusterManager;
 import com.lazerwars2563.Handler.AudioHandler;
-import com.lazerwars2563.Class.ClusterMarker;
-import com.lazerwars2563.Class.GeoSpot;
 import com.lazerwars2563.Class.Message;
-import com.lazerwars2563.Class.PlayerData;
 import com.lazerwars2563.Class.PlayerViewer;
 import com.lazerwars2563.Handler.GameDatabaseHandler;
 import com.lazerwars2563.Handler.GameMakerHandler;
 import com.lazerwars2563.Handler.GameMapHandler;
+import com.lazerwars2563.Handler.GamePlayHandler;
 import com.lazerwars2563.Handler.MessagesHandler;
-import com.lazerwars2563.adapters.MessageAdapter;
-import com.lazerwars2563.services.CustomTimer;
-import com.lazerwars2563.services.DataService;
-import com.lazerwars2563.util.MyClusterManagerRenderer;
+import com.lazerwars2563.Handler.CustomTimer;
 import com.lazerwars2563.util.UserClient;
 import com.lazerwars2563.Class.UserDetails;
 import com.lazerwars2563.R;
-import com.lazerwars2563.util.ViewWeightAnimationWrapper;
 
 import java.io.File;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static com.lazerwars2563.util.Constants.MAPVIEW_BUNDLE_KEY;
 
 public class GameActivity extends FragmentActivity implements OnMapReadyCallback {
     private static String TAG = "GameActivity";
@@ -90,6 +71,7 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
     private RelativeLayout mMainContainer;
     private ImageView dragView;
     private MapView mapView;
+    private TextView timerText;
 
     //fireStore db
     private FirebaseFirestore db;
@@ -98,7 +80,6 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
     //firebase realTime db
     private FirebaseDatabase database;
     private DatabaseReference roomRef;
-    private DatabaseReference usersRef;
 
     //players maps:
     private Map<String, Integer> teamsMap;
@@ -109,30 +90,17 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
     private String gameType;
 
 
-    //map
-    private PlayerData myData;
-
     private GoogleMap mGoogleMap;
-    private LatLngBounds mapBoundary;
-
-    //over all map view window [MapZoom X MapZoom]
-    private static final double MapZoom = 0.005;//smaller the value bigger the map zoom
 
     //cluster marker
     private GameMakerHandler gameMakerHandler;
-
     private MessagesHandler messagesHandler;
-
     private GameDatabaseHandler gameDatabaseHandler;
-
     private GameMapHandler gameMapHandler;
+    private GamePlayHandler gamePlayHandler;
 
     private UserDetails user;
     private PlayerViewer userData;
-
-    private Map<String, PlayerData> players = new HashMap<>();
-
-    private ValueEventListener userListener;
 
     private AudioHandler audioHandler;
     private String audioTo;
@@ -160,12 +128,12 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         UserDetails();
         //get all data from firestore
         GetFireStoreData();
-        myData = new PlayerData(userData.getId());
 
         mMapContainer = findViewById(R.id.relative_layout_map);
         mMainContainer = findViewById(R.id.relative_layout_main);
         dragView = findViewById(R.id.dragView);
         mapView = findViewById(R.id.map_view);
+        timerText = findViewById(R.id.game_timer_view);
 
         //initGoogleMap(savedInstanceState);
         gameMapHandler = new GameMapHandler( mapView, this, this,mMapContainer,mMainContainer,dragView,savedInstanceState);
@@ -196,14 +164,13 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         SetVoiceMessage();
 
         //create markers for players
-        gameMakerHandler = new GameMakerHandler( userData, mGoogleMap, GameActivity.this,  teamsMap,  usersNameMap,  imageMap, showAll);
+        gameMakerHandler = new GameMakerHandler( userData, mGoogleMap, GameActivity.this,  teamsMap,  usersNameMap,  imageMap, showAll,roomRef.child(roomName));
         //set listeners to database
         gameDatabaseHandler = new GameDatabaseHandler( gameMakerHandler ,database,  roomRef,  roomName,  userData, GameActivity.this);
-        gameDatabaseHandler.setListener(new CustomTimer.ChangeListener() {
+        gameDatabaseHandler.setListener(new GameDatabaseHandler.ChangeListener() {
             @Override
             public void onChange() {
-                players = gameDatabaseHandler.getPlayers();
-                gameMakerHandler.MoveMapMarkers(players);
+                gameMakerHandler.MoveMapMarkers(gameDatabaseHandler.getPlayers());
             }
         });
 
@@ -217,10 +184,8 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         RecyclerView recyclerView = findViewById(R.id.recyclerview_messages);
         messagesHandler = new MessagesHandler(GameActivity.this, recyclerView, roomRef, roomName, userData);
 
-        //Debug: do it in startgame
-        if (isAdmin) {
-            messagesHandler.SendMessage(new Message("all", "Start Game!!!"));
-        }
+        gamePlayHandler = new GamePlayHandler(roomStoreRef, timerText, roomRef, userData, roomName, isAdmin, messagesHandler,this,usersNameMap);
+        gamePlayHandler.SetStartListener();
 
     }
 
@@ -338,16 +303,6 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         }
     }
 
-    //Debug check why not working
-    private void RemoveListenersAndServices()
-    {
-        if(usersRef != null && userListener != null) {//Debug - needed?
-            Log.d(TAG,"RemoveListenersAndServices: removing listeners");
-            usersRef.removeEventListener(userListener);
-        }
-        gameDatabaseHandler.stopDataService();
-    }
-
     class AudioSpinnerClass implements AdapterView.OnItemSelectedListener
     {
         public void onItemSelected(AdapterView<?> parent, View v, int position, long id)
@@ -391,8 +346,9 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     protected void onDestroy() {
-        RemoveListenersAndServices();
+        gameDatabaseHandler.DestroyHendler();
         mapView.onDestroy();
+        gamePlayHandler.QuitGame();
         super.onDestroy();
     }
 
@@ -400,6 +356,30 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
     public void onLowMemory() {
         mapView.onLowMemory();
         super.onLowMemory();
+    }
+
+    //leaving waiting Room
+    @Override
+    public void onBackPressed() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+
+        builder.setMessage("Are you sure you want to leave this room?")
+                .setCancelable(false)
+                .setPositiveButton("yes", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        gameDatabaseHandler.DestroyHendler();
+                        gamePlayHandler.QuitGame();
+                    }
+                })
+                .setNegativeButton("No", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.cancel();
+                    }
+                });
+        AlertDialog alertDialog = builder.create();
+        alertDialog.show();
     }
 
 }

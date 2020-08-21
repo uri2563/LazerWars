@@ -58,6 +58,7 @@ public class MessagesHandler {
         recyclerView.setLayoutManager(linearLayoutManager);
         messageRef = roomRef.child(roomName).child("Messages");
 
+
         messageRef.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
@@ -67,9 +68,14 @@ public class MessagesHandler {
                         arrayList.add(eventSnapshot.getValue(Message.class));
                     }
                 }
-                mMessageAdapter = new MessageAdapter(arrayList, context, userData);
-                recyclerView.setAdapter(mMessageAdapter);
-                recyclerView.smoothScrollToPosition(mMessageAdapter.getItemCount() - 1);//scroll to end
+                    mMessageAdapter = new MessageAdapter(arrayList, context, userData);
+                    recyclerView.setAdapter(mMessageAdapter);
+
+                    int items_num = mMessageAdapter.getItemCount() - 1;
+                    if(items_num > 0)
+                    {
+                    recyclerView.smoothScrollToPosition(items_num);//scroll to end
+                    }
             }
 
             @Override

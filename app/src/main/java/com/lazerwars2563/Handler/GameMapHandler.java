@@ -3,9 +3,7 @@ package com.lazerwars2563.Handler;
 import android.Manifest;
 import android.animation.ObjectAnimator;
 import android.app.Activity;
-import android.app.ActivityManager;
 import android.content.Context;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Bundle;
@@ -29,11 +27,9 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
-import com.lazerwars2563.Activitys.GameActivity;
 import com.lazerwars2563.Class.GeoSpot;
-import com.lazerwars2563.Class.PlayerData;
+import com.lazerwars2563.Class.PlayerLocationData;
 import com.lazerwars2563.R;
-import com.lazerwars2563.services.DataService;
 import com.lazerwars2563.util.UserClient;
 import com.lazerwars2563.util.ViewWeightAnimationWrapper;
 
@@ -45,7 +41,6 @@ public class GameMapHandler implements View.OnTouchListener{
 
 
     private FusedLocationProviderClient fusedLocationProviderClient;
-    private Intent dataServiceIntent;
     private LatLngBounds mapBoundary;
     float window_height;
 
@@ -118,7 +113,7 @@ public class GameMapHandler implements View.OnTouchListener{
                     Location location = task.getResult();
                     GeoSpot geoPoint = new GeoSpot(location.getLatitude(), location.getLongitude());
 
-                    PlayerData newData = new PlayerData(geoPoint,id,score,null);
+                    PlayerLocationData newData = new PlayerLocationData(geoPoint,id,null);
 
                     UserClient.getInstance().setCurrentScore(score);
                     SetCameraView(newData,mGoogleMap);
@@ -130,7 +125,7 @@ public class GameMapHandler implements View.OnTouchListener{
     }
 
     //creates the map bounds
-    public void SetCameraView(final PlayerData myData, GoogleMap mGoogleMap)
+    public void SetCameraView(final PlayerLocationData myData, GoogleMap mGoogleMap)
     {
         double bottomBoundary = myData.getGeoSpot().getLatitude() - MapZoom;
         double leftBoundary = myData.getGeoSpot().getLongitude() - MapZoom;

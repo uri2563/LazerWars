@@ -23,9 +23,6 @@ import android.graphics.BitmapFactory;
 import android.location.LocationManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.CountDownTimer;
-import android.os.Environment;
-import android.util.ArraySet;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -43,37 +40,34 @@ import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.Task;
+import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.EventListener;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreException;
+import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.Query;
-import com.google.firebase.storage.FileDownloadTask;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.lazerwars2563.Class.PlayerViewer;
 import com.lazerwars2563.Class.TeamItem;
-import com.lazerwars2563.services.CustomTimer;
+import com.lazerwars2563.Handler.CustomTimer;
 import com.lazerwars2563.util.UserClient;
 import com.lazerwars2563.Class.UserDetails;
 import com.lazerwars2563.R;
 import com.lazerwars2563.adapters.TeamAdapter;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Random;
-import java.util.Set;
-import java.util.Timer;
 
 import static com.lazerwars2563.util.Constants.ERROR_DIALOG_REQUEST;
-import static com.lazerwars2563.util.Constants.PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION;
 import static com.lazerwars2563.util.Constants.PERMISSIONS_REQUEST_ENABLE_GPS;
 
 public class WaitingRoomActivity extends AppCompatActivity {
@@ -120,6 +114,9 @@ public class WaitingRoomActivity extends AppCompatActivity {
     private TeamAdapter teamAdapter;
 
     private Map<String, Boolean> playersImage;
+
+    private ListenerRegistration waitingHandler;
+    private ListenerRegistration playerListener;
 
 
     //leaving waiting Room
@@ -174,7 +171,7 @@ public class WaitingRoomActivity extends AppCompatActivity {
         {
             timer.DestroyTimer();
         }
-
+        StopListeners();
         Intent intent = new Intent(WaitingRoomActivity.this, ChooseRoomActivity.class);
         startActivity(intent);
     }
@@ -268,7 +265,7 @@ public class WaitingRoomActivity extends AppCompatActivity {
 
             //listen to game status change
             {
-                roomRef.addSnapshotListener(new EventListener<DocumentSnapshot>() {
+                waitingHandler = roomRef.addSnapshotListener(new EventListener<DocumentSnapshot>() {
                     @Override
                     public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
                         if (e != null) {
@@ -320,7 +317,7 @@ public class WaitingRoomActivity extends AppCompatActivity {
 
             //listen to player change
             {
-                roomRef.collection("Players").document(user.getUserId()).addSnapshotListener(new EventListener<DocumentSnapshot>() {
+                playerListener = roomRef.collection("Players").document(user.getUserId()).addSnapshotListener(new EventListener<DocumentSnapshot>() {
                     @Override
                     public void onEvent(@Nullable DocumentSnapshot documentSnapshot, @Nullable FirebaseFirestoreException e) {
                         if (e != null) {
@@ -446,6 +443,7 @@ public class WaitingRoomActivity extends AppCompatActivity {
         intent.putExtra("game",roomType);
         intent.putExtra("admin",admin);
         //check how to pass map data!!!!
+        StopListeners();
         startActivity(intent);
     }
 
@@ -542,10 +540,10 @@ public class WaitingRoomActivity extends AppCompatActivity {
              }
 
              private void ImageUpdate(@NonNull final PlayersHolder holder, @NonNull final PlayerViewer model) throws IOException {
-                StorageReference islandRef = mStorageRef.child(model.getId() + ".jpg");
+                StorageReference imgRef = mStorageRef.child(model.getId() + ".jpg");
 
                 final long ONE_MEGABYTE = 1024 * 1024;
-                islandRef.getBytes(ONE_MEGABYTE).addOnSuccessListener(new OnSuccessListener<byte[]>() {
+                imgRef.getBytes(ONE_MEGABYTE).addOnSuccessListener(new OnSuccessListener<byte[]>() {
                     @Override
                     public void onSuccess(byte[] bytes) {
                         Bitmap bitmap = BitmapFactory.decodeByteArray(bytes , 0, bytes.length);
@@ -561,6 +559,7 @@ public class WaitingRoomActivity extends AppCompatActivity {
                     }
                 });
              }
+
 
              private void SaveImage(Bitmap bitmap,  @NonNull final PlayerViewer model) {
                  ContextWrapper cw = new ContextWrapper(getApplicationContext());
@@ -585,42 +584,6 @@ public class WaitingRoomActivity extends AppCompatActivity {
         recyclerView.setAdapter(adapter);
     }
 
-    @Override
-    protected void onStart() {
-        super.onStart();
-        if(adapter != null)
-        {
-            adapter.startListening();
-        }
-        Log.d(TAG,"onStart");
-        if(checkMapServices() && !permissionGranted){
-            getPermission();
-        }
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        Log.d(TAG,"onDestroy");
-    }
-
-    @Override
-    protected void onStop() {
-        super.onStop();
-        if(adapter != null)
-        {
-            adapter.stopListening();
-        }
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        if(adapter != null)
-        {
-            adapter.startListening();
-        }
-    }
 
     private class PlayersHolder extends RecyclerView.ViewHolder{
         TextView textViewName;
@@ -735,5 +698,50 @@ public class WaitingRoomActivity extends AppCompatActivity {
             }
         }
         return false;
+    }
+
+    private void StopListeners()
+    {
+        Log.d(TAG,"StopListeners: stop listening");
+        waitingHandler.remove();
+        playerListener.remove();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        if(adapter != null)
+        {
+            adapter.startListening();
+        }
+        Log.d(TAG,"onStart");
+        if(checkMapServices() && !permissionGranted){
+            getPermission();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        StopListeners();
+        Log.d(TAG,"onDestroy");
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if(adapter != null)
+        {
+            adapter.stopListening();
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if(adapter != null)
+        {
+            adapter.startListening();
+        }
     }
 }

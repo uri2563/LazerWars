@@ -1,29 +1,24 @@
 package com.lazerwars2563.Class;
 
-import android.util.Log;
-
-import com.google.firebase.firestore.GeoPoint;
 import com.google.firebase.firestore.ServerTimestamp;
 
-public class PlayerData {
+public class PlayerLocationData {
     GeoSpot geoSpot;
     private String userId = "";
-    private int score = 0;
     private @ServerTimestamp
     String timestamp;
 
-    public PlayerData(GeoSpot geoPoint, String userId, int score, String timestamp) {
+    public PlayerLocationData(GeoSpot geoPoint, String userId, String timestamp) {
         this.geoSpot = geoPoint;
         this.userId = userId;
-        this.score = score;
         this.timestamp = timestamp;
     }
 
-    public PlayerData(String userId) {
+    public PlayerLocationData(String userId) {
         this.userId = userId;
     }
 
-    public PlayerData() {
+    public PlayerLocationData() {
     }
 
     public void setGeoSpot(GeoSpot geoPoint) {
@@ -32,10 +27,6 @@ public class PlayerData {
 
     public void setUserId(String userId) {
         this.userId = userId;
-    }
-
-    public void setScore(int score) {
-        this.score = score;
     }
 
     public void setTimestamp(String timestamp) {
@@ -50,33 +41,28 @@ public class PlayerData {
         return userId;
     }
 
-    public int getScore() {
-        return score;
-    }
-
     public String getTimestamp() {
         return timestamp;
     }
 
     @Override
     public String toString() {
-        return "PlayerData{" +
+        return "PlayerLocationData{" +
                 "geoSpot=" + geoSpot +
                 ", userId='" + userId + '\'' +
-                ", score=" + score +
                 ", timestamp='" + timestamp + '\'' +
                 '}';
     }
 
-    public boolean equals(PlayerData data)
+    public boolean equals(PlayerLocationData data)
     {
-        if(data.score == score && data.geoSpot.equals(geoSpot) && compareIdAndTime(data)) {
+        if(data.geoSpot.equals(geoSpot) && compareIdAndTime(data)) {
             return true;
         }
         return false;
     }
 
-    private boolean compareIdAndTime(PlayerData data)
+    private boolean compareIdAndTime(PlayerLocationData data)
     {
         if (((data.timestamp == null && timestamp == null) || data.timestamp.equals(timestamp))
         &&(data.userId == null && userId == null) || data.userId.equals(userId)
