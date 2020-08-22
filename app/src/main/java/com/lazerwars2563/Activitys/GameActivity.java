@@ -164,15 +164,10 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         SetVoiceMessage();
 
         //create markers for players
-        gameMakerHandler = new GameMakerHandler( userData, mGoogleMap, GameActivity.this,  teamsMap,  usersNameMap,  imageMap, showAll,roomRef.child(roomName));
+        gameMakerHandler = new GameMakerHandler( userData, mGoogleMap, GameActivity.this,  teamsMap,  usersNameMap,  imageMap, showAll, database,roomName);
         //set listeners to database
         gameDatabaseHandler = new GameDatabaseHandler( gameMakerHandler ,database,  roomRef,  roomName,  userData, GameActivity.this);
-        gameDatabaseHandler.setListener(new GameDatabaseHandler.ChangeListener() {
-            @Override
-            public void onChange() {
-                gameMakerHandler.MoveMapMarkers(gameDatabaseHandler.getPlayers());
-            }
-        });
+        gameMakerHandler.CreateUserListener();
 
         //finish game map handler
         gameMapHandler.setGameDatabaseHandler(gameDatabaseHandler);
@@ -185,7 +180,7 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         messagesHandler = new MessagesHandler(GameActivity.this, recyclerView, roomRef, roomName, userData);
 
         gamePlayHandler = new GamePlayHandler(roomStoreRef, timerText, roomRef, userData, roomName, isAdmin, messagesHandler,this,usersNameMap);
-        gamePlayHandler.SetStartListener();
+        gamePlayHandler.SetStartListener(gameMakerHandler);
 
     }
 
@@ -346,9 +341,8 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     protected void onDestroy() {
-        gameDatabaseHandler.DestroyHendler();
+        DestroyHandlers();
         mapView.onDestroy();
-        gamePlayHandler.QuitGame();
         super.onDestroy();
     }
 
@@ -368,8 +362,7 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
                 .setPositiveButton("yes", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        gameDatabaseHandler.DestroyHendler();
-                        gamePlayHandler.QuitGame();
+                        DestroyHandlers();
                     }
                 })
                 .setNegativeButton("No", new DialogInterface.OnClickListener() {
@@ -380,6 +373,13 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
                 });
         AlertDialog alertDialog = builder.create();
         alertDialog.show();
+    }
+
+    private void DestroyHandlers()
+    {
+        gameDatabaseHandler.DestroyHendler();
+        gameMakerHandler.DestroyHandler();
+        gamePlayHandler.QuitGame();
     }
 
 }

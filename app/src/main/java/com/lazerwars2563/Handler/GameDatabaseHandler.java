@@ -22,11 +22,7 @@ import java.util.Map;
 public class GameDatabaseHandler {
     private static String TAG = "GameDatabaseHandler";
 
-    private GameDatabaseHandler.ChangeListener listener;
     private Intent dataServiceIntent;
-
-    private ValueEventListener userListener;
-    private DatabaseReference usersRef;
 
     //from activity
     private Map<String, PlayerLocationData> players;
@@ -48,36 +44,6 @@ public class GameDatabaseHandler {
 
     }
 
-    //create the listener for the users data
-    private void CreateUserListener() {
-        Log.d(TAG, "CreateUserListener: UserListener initiated");
-        usersRef = database.getReference("Rooms/" + roomName + "/UsersLocation");
-        userListener = usersRef.addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                Log.d(TAG, "CreateUserListener: updating The Players Data from database");
-                setPlayers();
-                for (DataSnapshot data : snapshot.getChildren()) {
-                    PlayerLocationData player = data.getValue(PlayerLocationData.class);
-                    players.put(player.getUserId(), player);
-                }
-                if(gameMakerHandler != null) {
-                    gameMakerHandler.MoveMapMarkers(players);
-                }
-                //Show UserData in view
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-
-            }
-        });
-    }
-    //if players change!
-    public Map<String, PlayerLocationData> getPlayers() {
-        return players;
-    }
-
     //saves manually (only once) first data of the current user
     //and calls the CreateUserListener func
     //will start the DataService (calls startLocationService func)
@@ -91,7 +57,6 @@ public class GameDatabaseHandler {
                 if(firstInit)
                 {
                     firstInit = false;
-                    CreateUserListener();
                     startDataService();
                 }
             }
@@ -125,23 +90,6 @@ public class GameDatabaseHandler {
     }
 
 
-    public void setPlayers() {
-        this.players  = new HashMap<>();
-        if (listener != null) listener.onChange();
-    }
-
-    public GameDatabaseHandler.ChangeListener getListener() {
-        return listener;
-    }
-
-    public void setListener(GameDatabaseHandler.ChangeListener listener) {
-        this.listener = listener;
-    }
-
-    public interface ChangeListener {
-        void onChange();
-    }
-
     public void DestroyHendler()
     {
         //stop service
@@ -150,11 +98,6 @@ public class GameDatabaseHandler {
             Log.d(TAG,"RemoveListenersAndServices: Stop services");
             isDataServiceRunning = false;
             context.stopService(dataServiceIntent);
-        }
-
-        if(usersRef != null && userListener != null) {//Debug - needed?
-            Log.d(TAG,"RemoveListenersAndServices: removing listeners");
-            usersRef.removeEventListener(userListener);
         }
     }
 

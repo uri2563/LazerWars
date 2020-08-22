@@ -16,6 +16,7 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
+import com.google.firebase.firestore.ListenerRegistration;
 import com.lazerwars2563.Activitys.ChooseRoomActivity;
 import com.lazerwars2563.Activitys.WaitingRoomActivity;
 import com.lazerwars2563.Class.Message;
@@ -30,7 +31,10 @@ public class GamePlayHandler
     public enum States{SETUP,START, STOP, GAME, ADMIN_CHANGE, END};
     private States currentState = States.SETUP;
     private CustomTimer timer;
+
     private DatabaseReference roomRef;
+    private DocumentReference roomStoreRef;
+
     private PlayerViewer userData;
     private String roomName;
     private boolean isAdmin;
@@ -41,6 +45,8 @@ public class GamePlayHandler
 
     private TextView timerText;
     private MessagesHandler messagesHandler;
+
+    private int playersNum;//currentLogedInplayers!
 
     public GamePlayHandler(DocumentReference roomStoreRef, TextView timerText, DatabaseReference roomRef, PlayerViewer userData, String roomName,
                            boolean isAdmin, MessagesHandler messagesHandler, Context context, Map<String, String> usersNameMap) {
@@ -53,6 +59,7 @@ public class GamePlayHandler
         this.messagesHandler = messagesHandler;
         this.context = context;
         this.usersNameMap = usersNameMap;
+        this.roomStoreRef = roomStoreRef;
         roomRef.child(roomName).child("RoomState").setValue(States.SETUP);
 
         //get time
@@ -137,8 +144,9 @@ public class GamePlayHandler
     }
 
     private ValueEventListener startListener;
-    public void SetStartListener()
+    public void SetStartListener(GameMakerHandler gameMakerHandler)
     {
+        StartPlayersNumListener(gameMakerHandler);
         if(!isAdmin)
         {
             return;
@@ -160,6 +168,17 @@ public class GamePlayHandler
 
                 }
             });
+    }
+
+    private void StartPlayersNumListener(final GameMakerHandler gameMakerHandler) {
+        Log.d(TAG,"StartPlayersNumListener: current Players loged in number");
+           gameMakerHandler.setListener(new GameMakerHandler.ChangeListener() {
+            @Override
+            public void onChange() {
+                playersNum = gameMakerHandler.getPlayersNum();
+                Log.d(TAG,"StartPlayersNumListener: current Players loged in number: " + playersNum);
+            }
+        });
     }
 
     private void StartGame() {
@@ -196,9 +215,17 @@ public class GamePlayHandler
         catch (Exception e)
         { Log.e(TAG,e.toString());}
 
+        if(playersNum == 1)
+        {
+            DestroyGame();
+        }
+
         Intent intent = new Intent(context, ChooseRoomActivity.class);
         context.startActivity(intent);
     }
 
-
+    private void DestroyGame() {
+        //roomRef.child(roomName).removeValue();
+        roomStoreRef.delete();
+    }
 }
