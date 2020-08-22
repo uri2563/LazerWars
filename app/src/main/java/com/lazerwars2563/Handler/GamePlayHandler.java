@@ -199,13 +199,14 @@ public class GamePlayHandler
             timer.DestroyTimer();
         }
         try {
-            roomRef.removeEventListener(roomStateListener);
+            roomRef.child(roomName).child("RoomState").removeEventListener(roomStateListener);
             roomRef.child(roomName).child("PlayersState").child(userData.getId()).setValue(false);
+
             roomRef.child(roomName).child("UsersLocation").child(userData.getId()).removeValue().addOnSuccessListener(new OnSuccessListener<Void>() {
                 @Override
                 public void onSuccess(Void aVoid) {
                     Log.d(TAG, "QuitGame: deleted player: " + userData.getId());
-                    if (isAdmin) {
+                    if (isAdmin && playersNum > 1) {
                         //make another admin
                         ChangeGameState(States.ADMIN_CHANGE);
                     }
@@ -225,7 +226,7 @@ public class GamePlayHandler
     }
 
     private void DestroyGame() {
-        //roomRef.child(roomName).removeValue();
+        roomRef.child(roomName).removeValue();
         roomStoreRef.delete();
     }
 }
