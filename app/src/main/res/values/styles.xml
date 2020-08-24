@@ -8,7 +8,4 @@
         <item name="colorPrimary">@color/colorPrimaryDark</item>
         <item name="colorPrimaryDark">@color/ColorText</item>
     </style>
-
-
-
 </resources>

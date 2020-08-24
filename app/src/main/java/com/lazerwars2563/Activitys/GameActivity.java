@@ -5,17 +5,25 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.cardview.widget.CardView;
 import androidx.collection.ArraySet;
 import androidx.core.app.ActivityCompat;
+import androidx.core.content.res.ResourcesCompat;
 import androidx.fragment.app.FragmentActivity;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
+import android.app.ActionBar;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.DialogInterface;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
+import android.graphics.Typeface;
 import android.os.Bundle;
+import android.text.Spannable;
+import android.text.SpannableString;
+import android.text.style.TypefaceSpan;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.AdapterView;
@@ -72,6 +80,7 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
     private ImageView dragView;
     private MapView mapView;
     private TextView timerText;
+    private TextView scoreText;
 
     //fireStore db
     private FirebaseFirestore db;
@@ -110,6 +119,24 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
     private int[] teamsColorArray;
 
     @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater inflater = getMenuInflater();
+        inflater.inflate(R.menu.game_menu, menu);
+
+        SpannableString s = new SpannableString(UserClient.getInstance().getUser().getUserName());
+        Typeface typeface = ResourcesCompat.getFont(this, R.font.black_ops_one);
+        s.setSpan(typeface, 0, s.length(),
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        ActionBar actionBar = getActionBar();
+        actionBar.setTitle("    " + s);
+        actionBar.setIcon(R.drawable.ic_warning_black_24dp);
+
+        actionBar.setDisplayUseLogoEnabled(true);
+        actionBar.setDisplayShowHomeEnabled(true);
+        return true;
+    }
+
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_game);
@@ -134,6 +161,7 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         dragView = findViewById(R.id.dragView);
         mapView = findViewById(R.id.map_view);
         timerText = findViewById(R.id.game_timer_view);
+        scoreText = findViewById(R.id.text_score);
 
         //initGoogleMap(savedInstanceState);
         gameMapHandler = new GameMapHandler( mapView, this, this,mMapContainer,mMainContainer,dragView,savedInstanceState);
@@ -166,7 +194,7 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         //create markers for players
         gameMakerHandler = new GameMakerHandler( userData, mGoogleMap, GameActivity.this,  teamsMap,  usersNameMap,  imageMap, showAll, database,roomName);
         //set listeners to database
-        gameDatabaseHandler = new GameDatabaseHandler( gameMakerHandler ,database,  roomRef,  roomName,  userData, GameActivity.this);
+        gameDatabaseHandler = new GameDatabaseHandler(roomRef,  roomName,  userData, GameActivity.this,scoreText);
         gameMakerHandler.CreateUserListener();
 
         //finish game map handler
@@ -179,7 +207,7 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         RecyclerView recyclerView = findViewById(R.id.recyclerview_messages);
         messagesHandler = new MessagesHandler(GameActivity.this, recyclerView, roomRef, roomName, userData);
 
-        gamePlayHandler = new GamePlayHandler(roomStoreRef, timerText, roomRef, userData, roomName, isAdmin, messagesHandler,this,usersNameMap);
+        gamePlayHandler = new GamePlayHandler(roomStoreRef, timerText, roomRef, userData, roomName, isAdmin, messagesHandler,this,usersNameMap,gameDatabaseHandler);
         gamePlayHandler.SetStartListener(gameMakerHandler);
 
     }

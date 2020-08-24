@@ -142,10 +142,10 @@ public class GameMakerHandler {
     public void CreateUserListener() {
         Log.d(TAG, "CreateUserListener: UserListener initiated");
         usersRef = dataBase.getReference("Rooms/" + roomName + "/UsersLocation");
-        players = new HashMap<>();
         userListener = usersRef.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
+                players = new HashMap<>();
                 Log.d(TAG, "CreateUserListener: updating The Players Data from database");
                 for (DataSnapshot data : snapshot.getChildren()) {
                     PlayerLocationData player = data.getValue(PlayerLocationData.class);

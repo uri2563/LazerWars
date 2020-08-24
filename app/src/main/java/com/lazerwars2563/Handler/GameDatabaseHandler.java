@@ -3,6 +3,7 @@ package com.lazerwars2563.Handler;
 import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
+import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 
@@ -25,23 +26,19 @@ public class GameDatabaseHandler {
     private Intent dataServiceIntent;
 
     //from activity
-    private Map<String, PlayerLocationData> players;
-    private GameMakerHandler gameMakerHandler = null;
-    private FirebaseDatabase database;
     private DatabaseReference roomRef;
     private String roomName;
     private PlayerViewer userData;
     private Context context;
+    private TextView scoreView;
 
 
-    public GameDatabaseHandler(GameMakerHandler gameMakerHandler,FirebaseDatabase database, DatabaseReference roomRef, String roomName, PlayerViewer userData, Context context ) {
-        this.gameMakerHandler = gameMakerHandler;
-        this.database = database;
+    public GameDatabaseHandler(DatabaseReference roomRef, String roomName, PlayerViewer userData, Context context, TextView scoreView) {
         this.roomRef = roomRef;
         this.roomName = roomName;
         this.userData = userData;
         this.context = context;
-
+        this.scoreView = scoreView;
     }
 
     //saves manually (only once) first data of the current user
@@ -75,6 +72,24 @@ public class GameDatabaseHandler {
         return false;
     }*/
 
+  public void StartScoreListener()
+  {
+    roomRef.child(roomName).child("Scores").child(userData.getId()).addValueEventListener(new ValueEventListener() {
+        @Override
+        public void onDataChange(@NonNull DataSnapshot snapshot) {
+            if(snapshot.exists()) {
+                scoreView.setText(snapshot.getValue().toString());
+            }
+        }
+
+        @Override
+        public void onCancelled(@NonNull DatabaseError error) {
+
+        }
+    });
+  }
+
+
     boolean isDataServiceRunning = false;
     private void startDataService(){
         if(!isDataServiceRunning){
@@ -88,7 +103,6 @@ public class GameDatabaseHandler {
             }
         }
     }
-
 
     public void DestroyHendler()
     {

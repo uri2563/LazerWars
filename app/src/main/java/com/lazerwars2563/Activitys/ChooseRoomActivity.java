@@ -2,6 +2,7 @@ package com.lazerwars2563.Activitys;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SearchView;
@@ -63,7 +64,6 @@ public class ChooseRoomActivity extends AppCompatActivity {
 
                 MenuItem item = menu.findItem(R.id.action_search);
                 mSearchView = (SearchView) item.getActionView();
-
         setUpRecyclerView();
         return true;
     }

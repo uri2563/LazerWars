@@ -46,10 +46,10 @@ public class GamePlayHandler
     private TextView timerText;
     private MessagesHandler messagesHandler;
 
-    private int playersNum;//currentLogedInplayers!
+    private int playersNum;//current Logged In players!
 
     public GamePlayHandler(DocumentReference roomStoreRef, TextView timerText, DatabaseReference roomRef, PlayerViewer userData, String roomName,
-                           boolean isAdmin, MessagesHandler messagesHandler, Context context, Map<String, String> usersNameMap) {
+                           boolean isAdmin, MessagesHandler messagesHandler, Context context, Map<String, String> usersNameMap,GameDatabaseHandler gameDatabaseHandler) {
         Log.d(TAG, "Game time in milisec is: " + timeLeftMiliSeconds);
         this.roomRef = roomRef;
         this.userData = userData;
@@ -61,6 +61,8 @@ public class GamePlayHandler
         this.usersNameMap = usersNameMap;
         this.roomStoreRef = roomStoreRef;
         roomRef.child(roomName).child("RoomState").setValue(States.SETUP);
+        AddToPlayerScore(userData.getId(),0);//score 0
+        gameDatabaseHandler.StartScoreListener();
 
         //get time
         roomStoreRef.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
@@ -136,6 +138,27 @@ public class GamePlayHandler
         });
     }
 
+    public void AddToPlayerScore(final String id, final int adds)
+    {
+        roomRef.child(roomName).child("Scores").child(id).addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                if(snapshot.exists()) {
+                    int scoreValue = snapshot.getValue(Integer.class);
+                    roomRef.child(roomName).child("Scores").child(id).setValue(scoreValue + adds);
+                }
+                else {
+                    roomRef.child(roomName).child("Scores").child(id).setValue(adds);
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+
+            }
+        });
+    }
+
     //admin only
     public void ChangeGameState(final States newtState) {
         if (!isAdmin) { return;}
@@ -180,6 +203,7 @@ public class GamePlayHandler
             }
         });
     }
+
 
     private void StartGame() {
         Log.d(TAG,"StartGame");
