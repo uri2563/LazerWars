@@ -11,7 +11,6 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.ValueEventListener;
-import com.lazerwars2563.Activitys.GameActivity;
 import com.lazerwars2563.Class.Message;
 import com.lazerwars2563.Class.PlayerViewer;
 import com.lazerwars2563.R;

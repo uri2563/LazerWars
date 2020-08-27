@@ -16,6 +16,8 @@ import android.content.ContextWrapper;
 import android.content.DialogInterface;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.text.Spannable;
@@ -60,11 +62,16 @@ import com.lazerwars2563.Handler.CustomTimer;
 import com.lazerwars2563.util.UserClient;
 import com.lazerwars2563.Class.UserDetails;
 import com.lazerwars2563.R;
+import com.squareup.okhttp.internal.framed.Header;
+
+import org.w3c.dom.Text;
 
 import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import de.hdodenhof.circleimageview.CircleImageView;
 
 public class GameActivity extends FragmentActivity implements OnMapReadyCallback {
     private static String TAG = "GameActivity";
@@ -119,24 +126,6 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
     private int[] teamsColorArray;
 
     @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.game_menu, menu);
-
-        SpannableString s = new SpannableString(UserClient.getInstance().getUser().getUserName());
-        Typeface typeface = ResourcesCompat.getFont(this, R.font.black_ops_one);
-        s.setSpan(typeface, 0, s.length(),
-                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-        ActionBar actionBar = getActionBar();
-        actionBar.setTitle("    " + s);
-        actionBar.setIcon(R.drawable.ic_warning_black_24dp);
-
-        actionBar.setDisplayUseLogoEnabled(true);
-        actionBar.setDisplayShowHomeEnabled(true);
-        return true;
-    }
-
-    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_game);
@@ -153,6 +142,18 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         isAdmin = extras.getBoolean("admin");
 
         UserDetails();
+
+        //set header
+        imageMap = new HashMap<>();
+        CircleImageView profileImage = findViewById(R.id.img_header);
+        TextView userNameHeader = findViewById(R.id.user_name_header);
+        userNameHeader.setText(userData.getName());
+        LoadImage(userData.getId());
+        if (!imageMap.get(userData.getId()).equals("")) {
+            Bitmap profileBitmap = BitmapFactory.decodeFile(imageMap.get(userData.getId()));
+            profileImage.setImageBitmap(profileBitmap);
+        }
+
         //get all data from firestore
         GetFireStoreData();
 
@@ -288,7 +289,6 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
 
         teamsMap = new HashMap<>();
         usersNameMap = new HashMap<>();
-        imageMap = new HashMap<>();
 
         roomStoreRef.collection("Players").get().addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
             @Override

@@ -2,16 +2,19 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:theme="@style/AppTheme"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".Activitys.GameActivity">
+
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical">
 
+        <include
+            android:id="@+id/player_header"
+            layout="@layout/header"></include>
 
         <RelativeLayout
             android:id="@+id/relative_layout_main"
@@ -19,50 +22,10 @@
             android:layout_height="match_parent"
             android:layout_weight="50">
 
-            <androidx.cardview.widget.CardView
-                android:id="@+id/score_card_view"
-                android:layout_width="wrap_content"
-                android:layout_height="60dp"
-                android:layout_margin="10dp"
-                app:cardCornerRadius="10dp"
-                android:layout_above="@+id/recyclerview_messages"
-                android:layout_centerHorizontal="true">
-
-                <RelativeLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent">
-                <RelativeLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_centerHorizontal="true"
-                    android:layout_centerVertical="true">
-                    <TextView
-                        android:id="@+id/text"
-                        android:layout_width="wrap_content"
-                        android:layout_height="40dp"
-                        android:gravity="center"
-                        android:layout_margin="4dp"
-                        android:textStyle="bold"
-                        android:text="Score:"
-                        android:textSize="22dp" />
-                    <TextView
-                        android:id="@+id/text_score"
-                        android:layout_width="wrap_content"
-                        android:layout_height="40dp"
-                        android:layout_margin="4dp"
-                        android:layout_toRightOf="@+id/text"
-                        android:gravity="center"
-                        android:textStyle="bold"
-                        android:text="0"
-                        android:textSize="22dp" />
-                </RelativeLayout>
-                </RelativeLayout>
-            </androidx.cardview.widget.CardView>
-
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recyclerview_messages"
                 android:layout_width="match_parent"
-                android:layout_height="150dp"
+                android:layout_height="200dp"
                 android:layout_above="@+id/record_button"></androidx.recyclerview.widget.RecyclerView>
 
             <Spinner
@@ -118,8 +81,6 @@
                 android:layout_height="match_parent"></com.google.android.gms.maps.MapView>
 
         </RelativeLayout>
-
-
     </LinearLayout>
 
 </RelativeLayout>
