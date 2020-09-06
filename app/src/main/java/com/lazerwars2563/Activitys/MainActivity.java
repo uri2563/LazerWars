@@ -84,7 +84,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void LeaveToNextPage() {
+        //Intent intent = new Intent(this, ChooseRoomActivity.class);
         Intent intent = new Intent(this, ChooseRoomActivity.class);
+
         startActivity(intent);
     }
 

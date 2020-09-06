@@ -5,27 +5,26 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.cardview.widget.CardView;
 import androidx.collection.ArraySet;
 import androidx.core.app.ActivityCompat;
-import androidx.core.content.res.ResourcesCompat;
 import androidx.fragment.app.FragmentActivity;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.Manifest;
-import android.app.ActionBar;
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Typeface;
 import android.os.Bundle;
-import android.text.Spannable;
-import android.text.SpannableString;
-import android.text.style.TypefaceSpan;
+import android.os.IBinder;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.AdapterView;
@@ -35,6 +34,7 @@ import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapView;
@@ -51,25 +51,24 @@ import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QuerySnapshot;
 import com.lazerwars2563.Handler.AudioHandler;
-import com.lazerwars2563.Class.Message;
 import com.lazerwars2563.Class.PlayerViewer;
 import com.lazerwars2563.Handler.GameDatabaseHandler;
 import com.lazerwars2563.Handler.GameMakerHandler;
 import com.lazerwars2563.Handler.GameMapHandler;
 import com.lazerwars2563.Handler.GamePlayHandler;
 import com.lazerwars2563.Handler.MessagesHandler;
-import com.lazerwars2563.Handler.CustomTimer;
+import com.lazerwars2563.Handler.SerialHandler;
+import com.lazerwars2563.Handler.SerialServiceHandler;
+import com.lazerwars2563.services.UsbService;
 import com.lazerwars2563.util.UserClient;
 import com.lazerwars2563.Class.UserDetails;
 import com.lazerwars2563.R;
-import com.squareup.okhttp.internal.framed.Header;
-
-import org.w3c.dom.Text;
 
 import java.io.File;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import de.hdodenhof.circleimageview.CircleImageView;
 
@@ -114,6 +113,7 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
     private GameDatabaseHandler gameDatabaseHandler;
     private GameMapHandler gameMapHandler;
     private GamePlayHandler gamePlayHandler;
+    private SerialServiceHandler serialServiceHandler;
 
     private UserDetails user;
     private PlayerViewer userData;
@@ -125,11 +125,14 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
 
     private int[] teamsColorArray;
 
+    public TextView userNameHeader;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_game);
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_NOSENSOR);//dont allow rotation
+
+        serialServiceHandler = new SerialServiceHandler(this,this);
 
         //set RealTime db
         database = FirebaseDatabase.getInstance();
@@ -146,7 +149,7 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         //set header
         imageMap = new HashMap<>();
         CircleImageView profileImage = findViewById(R.id.img_header);
-        TextView userNameHeader = findViewById(R.id.user_name_header);
+        userNameHeader = findViewById(R.id.user_name_header);
         userNameHeader.setText(userData.getName());
         LoadImage(userData.getId());
         if (!imageMap.get(userData.getId()).equals("")) {
@@ -208,7 +211,7 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         RecyclerView recyclerView = findViewById(R.id.recyclerview_messages);
         messagesHandler = new MessagesHandler(GameActivity.this, recyclerView, roomRef, roomName, userData);
 
-        gamePlayHandler = new GamePlayHandler(roomStoreRef, timerText, roomRef, userData, roomName, isAdmin, messagesHandler,this,usersNameMap,gameDatabaseHandler);
+        gamePlayHandler = new GamePlayHandler(roomStoreRef, timerText, roomRef, userData, roomName, isAdmin, messagesHandler,this,usersNameMap,gameDatabaseHandler, serialServiceHandler);
         gamePlayHandler.SetStartListener(gameMakerHandler);
 
     }
@@ -360,11 +363,14 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
     protected void onPause() {
         mapView.onPause();
         super.onPause();
+        serialServiceHandler.OnPauseSerial();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        serialServiceHandler.OnResumeSerial();
+
     }
 
     @Override
@@ -403,10 +409,11 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         alertDialog.show();
     }
 
-    private void DestroyHandlers()
+    public void DestroyHandlers()
     {
         gameDatabaseHandler.DestroyHendler();
         gameMakerHandler.DestroyHandler();
+        //serialServiceHandler.DestroyHendler();
         gamePlayHandler.QuitGame();
     }
 

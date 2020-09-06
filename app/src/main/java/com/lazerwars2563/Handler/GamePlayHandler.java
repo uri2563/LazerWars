@@ -1,9 +1,13 @@
 package com.lazerwars2563.Handler;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Debug;
+import android.os.Handler;
 import android.util.Log;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 
@@ -21,6 +25,7 @@ import com.lazerwars2563.Activitys.ChooseRoomActivity;
 import com.lazerwars2563.Activitys.WaitingRoomActivity;
 import com.lazerwars2563.Class.Message;
 import com.lazerwars2563.Class.PlayerViewer;
+import com.lazerwars2563.services.UsbService;
 
 import java.util.Map;
 
@@ -45,11 +50,12 @@ public class GamePlayHandler
 
     private TextView timerText;
     private MessagesHandler messagesHandler;
+    private SerialServiceHandler serialServiceHandler;
 
     private int playersNum;//current Logged In players!
 
     public GamePlayHandler(DocumentReference roomStoreRef, TextView timerText, DatabaseReference roomRef, PlayerViewer userData, String roomName,
-                           boolean isAdmin, MessagesHandler messagesHandler, Context context, Map<String, String> usersNameMap,GameDatabaseHandler gameDatabaseHandler) {
+                           boolean isAdmin, MessagesHandler messagesHandler, Context context, Map<String, String> usersNameMap,GameDatabaseHandler gameDatabaseHandler, SerialServiceHandler serialServiceHandler) {
         Log.d(TAG, "Game time in milisec is: " + timeLeftMiliSeconds);
         this.roomRef = roomRef;
         this.userData = userData;
@@ -60,6 +66,8 @@ public class GamePlayHandler
         this.context = context;
         this.usersNameMap = usersNameMap;
         this.roomStoreRef = roomStoreRef;
+        this.serialServiceHandler = serialServiceHandler;
+
         roomRef.child(roomName).child("RoomState").setValue(States.SETUP);
         AddToPlayerScore(userData.getId(),0);//score 0
         gameDatabaseHandler.StartScoreListener();
@@ -74,12 +82,16 @@ public class GamePlayHandler
                 SetReady();
             }
         });
-
     }
 
     private void SetReady()
     {
-        roomRef.child(roomName).child("PlayersState").child(userData.getId()).setValue(true);
+        roomRef.child(roomName).child("PlayersState").child(userData.getId()).setValue(true).addOnCompleteListener(new OnCompleteListener<Void>() {
+            @Override
+            public void onComplete(@NonNull Task<Void> task) {
+                StartConnectionSerialListener();
+            }
+        });
     }
 
     private ValueEventListener roomStateListener;
@@ -170,6 +182,7 @@ public class GamePlayHandler
     public void SetStartListener(GameMakerHandler gameMakerHandler)
     {
         StartPlayersNumListener(gameMakerHandler);
+
         if(!isAdmin)
         {
             return;
@@ -183,7 +196,6 @@ public class GamePlayHandler
                         messagesHandler.SendMessage(new Message("all", "Start Game!!!"));
                         ChangeGameState(States.START);
                     }
-
                 }
 
                 @Override
@@ -191,8 +203,34 @@ public class GamePlayHandler
 
                 }
             });
+
+        //run after 10 seconds if didnt start yet
+        final Handler handler = new Handler();
+        handler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if(currentState ==  States.SETUP)
+                {
+                    Log.d(TAG,"SetStartListener: start game");
+                    messagesHandler.SendMessage(new Message("all", "Start Game!!!"));
+                    ChangeGameState(States.START);
+                }
+            }
+        }, 10000);
     }
 
+    private void StartConnectionSerialListener() {
+        roomRef.child(roomName).child("PlayersState").child(userData.getId()).setValue(serialServiceHandler.isConnected());
+        serialServiceHandler.setListener(new SerialServiceHandler.ChangeListener() {
+            @Override
+            public void onChange() {
+                Log.d(TAG,"StartConnectionSerialListener stage: "+serialServiceHandler.isConnected());
+                roomRef.child(roomName).child("PlayersState").child(userData.getId()).setValue(serialServiceHandler.isConnected());
+            }
+        });
+    }
+
+    //keeps track on number of players connected
     private void StartPlayersNumListener(final GameMakerHandler gameMakerHandler) {
         Log.d(TAG,"StartPlayersNumListener: current Players loged in number");
            gameMakerHandler.setListener(new GameMakerHandler.ChangeListener() {
@@ -204,7 +242,6 @@ public class GamePlayHandler
         });
     }
 
-
     private void StartGame() {
         Log.d(TAG,"StartGame");
         //Start Timer
@@ -212,7 +249,7 @@ public class GamePlayHandler
         timer.setListener(new CustomTimer.ChangeListener() {
             @Override
             public void onChange() {
-                //end game
+                //Debug end game
             }
         });
     }

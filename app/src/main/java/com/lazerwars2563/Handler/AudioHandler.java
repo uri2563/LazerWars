@@ -41,7 +41,6 @@ public class AudioHandler {
 
     private MessageAdapter mMessageAdapter;
 
-
     public AudioHandler(Context context, String id, String roomName,DatabaseReference roomRef) {
         fileNames = new ArrayList<>();
         fileCount = 0;
@@ -50,6 +49,8 @@ public class AudioHandler {
         this.roomRef = roomRef;
         this.id = id;
         this.roomName = roomName;
+
+        //add download alarm
     }
 
     String CreateFileName()
