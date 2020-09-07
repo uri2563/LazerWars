@@ -27,6 +27,7 @@ import com.lazerwars2563.Class.Message;
 import com.lazerwars2563.Class.PlayerViewer;
 import com.lazerwars2563.services.UsbService;
 
+import java.util.HashMap;
 import java.util.Map;
 
 public class GamePlayHandler
@@ -55,9 +56,12 @@ public class GamePlayHandler
     private int playersNum;//current Logged In players!
 
     private Map<String, Integer> teamsMap;
+    private Map<String, String> idsMap;
+    private Map<String,Boolean> onlineMap;
 
     public GamePlayHandler(DocumentReference roomStoreRef, TextView timerText, DatabaseReference roomRef, PlayerViewer userData, String roomName,
-                           boolean isAdmin, MessagesHandler messagesHandler, Context context, Map<String, String> usersNameMap,GameDatabaseHandler gameDatabaseHandler, SerialServiceHandler serialServiceHandler, Map<String, Integer> teamsMap) {
+                           boolean isAdmin, MessagesHandler messagesHandler, Context context, Map<String, String> usersNameMap,GameDatabaseHandler gameDatabaseHandler, SerialServiceHandler serialServiceHandler,
+                           Map<String, Integer> teamsMap,  Map<String, String> idsMap) {
         Log.d(TAG, "Game time in milisec is: " + timeLeftMiliSeconds);
         this.roomRef = roomRef;
         this.userData = userData;
@@ -70,6 +74,7 @@ public class GamePlayHandler
         this.roomStoreRef = roomStoreRef;
         this.serialServiceHandler = serialServiceHandler;
         this.teamsMap = teamsMap;
+        this.idsMap = idsMap;
 
         roomRef.child(roomName).child("RoomState").setValue(States.SETUP);
         AddToPlayerScore(userData.getId(),0);//score 0
@@ -92,6 +97,9 @@ public class GamePlayHandler
         return roomName;
     }
 
+    public Map<String,Boolean> getOnlineMap()
+    {return onlineMap;}
+
     private void SetReady()
     {
         roomRef.child(roomName).child("PlayersState").child(userData.getId()).setValue(true).addOnCompleteListener(new OnCompleteListener<Void>() {
@@ -111,10 +119,6 @@ public class GamePlayHandler
                 Log.d(TAG, "ListenToRoomState: Game State Changed to: " + currentState.toString());
                 if (currentState == States.START)
                 {
-                    if(startListener != null)
-                    {
-                        roomRef.removeEventListener(startListener);
-                    }
                     StartGame();
                 }
                 else if(currentState == States.ADMIN_CHANGE)
@@ -190,27 +194,27 @@ public class GamePlayHandler
     public void SetStartListener(GameMakerHandler gameMakerHandler)
     {
         StartPlayersNumListener(gameMakerHandler);
+        onlineMap = new HashMap<>();
 
-        if(!isAdmin)
-        {
-            return;
-        }
-            startListener = roomRef.child(roomName).child("PlayersState").addValueEventListener(new ValueEventListener() {
-                @Override
-                public void onDataChange(@NonNull DataSnapshot snapshot) {
-                    if(currentState ==  States.SETUP && snapshot.getChildrenCount() == usersNameMap.size())
-                    {
-                        Log.d(TAG,"SetStartListener: start game");
-                        messagesHandler.SendMessage(new Message("all", "Start Game!!!"));
-                        ChangeGameState(States.START);
-                    }
+        startListener = roomRef.child(roomName).child("PlayersState").addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                if(isAdmin && currentState ==  States.SETUP && snapshot.getChildrenCount() == usersNameMap.size())
+                {
+                    Log.d(TAG,"SetStartListener: start game");
+                    messagesHandler.SendMessage(new Message("all", "Start Game!!!"));
+                    ChangeGameState(States.START);
                 }
-
-                @Override
-                public void onCancelled(@NonNull DatabaseError error) {
-
+                for (DataSnapshot userSnapshot: snapshot.getChildren()) {
+                    onlineMap.put(userSnapshot.getKey(),(Boolean)userSnapshot.getValue());
                 }
-            });
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+
+            }
+        });
 
         //run after 10 seconds if didnt start yet
         final Handler handler = new Handler();
@@ -228,7 +232,7 @@ public class GamePlayHandler
     }
 
     private void StartConnectionSerialListener() {
-        serialServiceHandler.setHandler(messagesHandler,this,usersNameMap);
+        serialServiceHandler.setHandler(messagesHandler,this,usersNameMap,idsMap);
 
         roomRef.child(roomName).child("PlayersState").child(userData.getId()).setValue(serialServiceHandler.isConnected());
         initArduino();
@@ -254,7 +258,7 @@ public class GamePlayHandler
     //keeps track on number of players connected
     private void StartPlayersNumListener(final GameMakerHandler gameMakerHandler) {
         Log.d(TAG,"StartPlayersNumListener: current Players loged in number");
-           gameMakerHandler.setListener(new GameMakerHandler.ChangeListener() {
+        gameMakerHandler.setListener(new GameMakerHandler.ChangeListener() {
             @Override
             public void onChange() {
                 playersNum = gameMakerHandler.getPlayersNum();
@@ -280,6 +284,12 @@ public class GamePlayHandler
         if(timer != null) {
             timer.DestroyTimer();
         }
+
+        if(startListener != null)
+        {
+            roomRef.removeEventListener(startListener);
+        }
+
         try {
             roomRef.child(roomName).child("RoomState").removeEventListener(roomStateListener);
             roomRef.child(roomName).child("PlayersState").child(userData.getId()).setValue(false);

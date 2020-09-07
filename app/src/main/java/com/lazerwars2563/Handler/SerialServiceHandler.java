@@ -14,6 +14,7 @@ import android.media.Ringtone;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Debug;
 import android.os.IBinder;
 import android.os.Vibrator;
 import android.util.Log;
@@ -22,7 +23,9 @@ import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 
 import com.google.firebase.database.DatabaseReference;
+import com.lazerwars2563.Activitys.CreateNewRoomActivity;
 import com.lazerwars2563.Activitys.GameActivity;
+import com.lazerwars2563.Activitys.WaitingRoomActivity;
 import com.lazerwars2563.Class.PlayerViewer;
 import com.lazerwars2563.R;
 import com.lazerwars2563.services.UsbService;
@@ -45,15 +48,23 @@ public class SerialServiceHandler {
     private boolean connected = false;
     private SerialServiceHandler.ChangeListener listener;
 
-    public SerialServiceHandler(Context context, Activity activity) {
+    private boolean setUp;
+
+    public SerialServiceHandler(Context context, Activity activity,boolean setUp) {
+        Log.d(TAG,"SerialServiceHandler init");
         this.context = context;
-        serialHandler = new SerialHandler((GameActivity) activity);
-        gameActivity = (GameActivity) activity;
+        this.setUp = setUp;
+
+        serialHandler = new SerialHandler(activity,this,context);
+        if(!setUp)
+        {
+            gameActivity = (GameActivity) activity;
+        }
     }
 
-    public void setHandler(MessagesHandler messagesHandler, GamePlayHandler gamePlayHandler,Map<String, String> usersNameMap)
+    public void setHandler(MessagesHandler messagesHandler, GamePlayHandler gamePlayHandler,Map<String, String> usersNameMap,Map<String, String> idsMap)
     {
-        serialHandler.setHandlers(messagesHandler,gamePlayHandler,usersNameMap);
+        serialHandler.setHandlers(messagesHandler,gamePlayHandler,usersNameMap,idsMap);
     }
 
     public boolean SendData(String data)
@@ -81,23 +92,41 @@ public class SerialServiceHandler {
         public void onReceive(Context context, Intent intent) {
             switch (intent.getAction()) {
                 case UsbService.ACTION_USB_PERMISSION_GRANTED: // USB PERMISSION GRANTED
-                    setConnation(true);
                     Toast.makeText(context, "USB Ready", Toast.LENGTH_SHORT).show();
-
+                    setConnation(true);
+                    if(alertDialog != null && alertDialog.isShowing())
+                    {
+                        alertDialog.dismiss();
+                    }
                     break;
                 case UsbService.ACTION_USB_PERMISSION_NOT_GRANTED: // USB PERMISSION NOT GRANTED
                     Toast.makeText(context, "USB Permission not granted", Toast.LENGTH_SHORT).show();
-                    usbService.requestUserPermission();//ask for permission!
                     break;
                 case UsbService.ACTION_NO_USB: // NO USB CONNECTED
                     setConnation(false);
                     Toast.makeText(context, "No USB connected", Toast.LENGTH_SHORT).show();
-                    ActionNoUsb();
+                    if(setUp)
+                    {
+                        ActionNoUsb("Connect","Return");
+                    }
+                    else
+                    {
+                        MakeAlarm();
+                        ActionNoUsb("Connect","Leave");
+                    }
                     break;
                 case UsbService.ACTION_USB_DISCONNECTED: // USB DISCONNECTED
                     setConnation(false);
                     Toast.makeText(context, "USB disconnected", Toast.LENGTH_SHORT).show();
-                    ActionNoUsb();
+                    if(setUp)
+                    {
+                        ActionNoUsb("Connect","Return");
+                    }
+                    else
+                    {
+                        MakeAlarm();
+                        ActionNoUsb("Connect","Leave");
+                    }
                     break;
                 case UsbService.ACTION_USB_NOT_SUPPORTED: // USB NOT SUPPORTED
                     setConnation(false);
@@ -107,7 +136,7 @@ public class SerialServiceHandler {
         }
     };
 
-    private void ActionNoUsb()
+    private void MakeAlarm()
     {
         //add alarm sound
         MediaPlayer ring= MediaPlayer.create(gameActivity, R.raw.alarm1);
@@ -120,27 +149,41 @@ public class SerialServiceHandler {
         } catch (Exception e) {
             Log.e(TAG, "prepare() failed");
         }
+    }
+
+    AlertDialog alertDialog;
+    private void ActionNoUsb(String positive, String negative)
+    {
+        if(alertDialog!= null && alertDialog.isShowing())
+        {
+            return;
+        }
 
         AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        builder.setMessage("Couldnt find usb connation please connect and click Connect")
+        builder.setMessage("Couldnt find usb connation, please connect to your suit and click Connect")
                 .setCancelable(false)
-                .setPositiveButton("Connect", new DialogInterface.OnClickListener() {
+                .setPositiveButton(positive, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         if(usbService != null)
                         {
                             usbService.findSerialPortDevice();
-                            //Toast.makeText(GameActivity.this, "Debug - change", Toast.LENGTH_SHORT).show();
                         }
                         dialog.cancel();                    }
                 })
-                .setNegativeButton("Leave", new DialogInterface.OnClickListener() {
+                .setNegativeButton(negative, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                       gameActivity.DestroyHandlers();
+                        if(!setUp) {
+                            gameActivity.DestroyHandlers();
+                        }
+                        else
+                        {
+                            Toast.makeText(context,"ActionNoUsb: Dubag return", Toast.LENGTH_SHORT).show();
+                        }
                     }
                 });
-        AlertDialog alertDialog = builder.create();
+        alertDialog = builder.create();
         alertDialog.show();
     }
 
@@ -150,7 +193,14 @@ public class SerialServiceHandler {
         public void onServiceConnected(ComponentName arg0, IBinder arg1) {
             usbService = ((UsbService.UsbBinder) arg1).getService();
             usbService.setHandler(serialHandler);
-            usbService.findSerialPortDevice();
+           // Toast.makeText(context,"onServiceConnected",Toast.LENGTH_SHORT).show();
+           // usbService.findSerialPortDevice();
+            if(usbService != null) {
+                setConnation(usbService.getSerialPortConnection());
+                if (!usbService.getSerialPortConnection()) {
+                    ActionNoUsb("Connect", "Leave");
+                }
+            }
         }
 
         @Override
@@ -185,10 +235,15 @@ public class SerialServiceHandler {
     {
         setFilters();  // Start listening notifications from UsbService
         startService(UsbService.class, usbConnection, null); // Start UsbService(if it was not started before) and Bind it
-        if(usbService != null)
+        /*if(usbService != null)
         {
-            connected = usbService.getSerialPortConnection();
-        }
+            Toast.makeText(context,"OnResumeSerial 1",Toast.LENGTH_SHORT).show();
+            setConnation(usbService.getSerialPortConnection());
+            if(!usbService.getSerialPortConnection()) {
+                Toast.makeText(context,"OnResumeSerial 2",Toast.LENGTH_SHORT).show();
+                ActionNoUsb("Connect", "Leave");
+            }
+        }*/
     }
     private boolean isMyServiceRunning(Class<?> serviceClass) {
         ActivityManager manager = (ActivityManager)context.getSystemService(Context.ACTIVITY_SERVICE);

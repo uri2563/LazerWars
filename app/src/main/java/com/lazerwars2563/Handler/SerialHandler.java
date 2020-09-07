@@ -1,5 +1,7 @@
 package com.lazerwars2563.Handler;
 
+import android.app.Activity;
+import android.content.Context;
 import android.os.Handler;
 import android.os.Message;
 import android.service.autofill.UserData;
@@ -8,6 +10,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.Task;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -25,28 +28,40 @@ public class SerialHandler extends Handler {
 
     private enum MessageType{ID,HIT,UNKNOWN};
 
-    private final WeakReference<GameActivity> mActivity;
+    private SerialServiceHandler serialServiceHandler;
+
+    private final WeakReference<Activity> mActivity;
     private MessagesHandler messagesHandler;
     private GamePlayHandler gamePlayHandler;
     private Map<String, String> usersNameMap;
+    private Map<String, String> idsMap;
     private UserDetails user;
+
+    //firebase realTime db
+    private DatabaseReference roomRef;
+
+    private Context context;
 
     private boolean isUpdateArduinoId = false;
 
-    //firebase realTime db
-    private FirebaseDatabase database;
-    private DatabaseReference roomRef;
-
-    public SerialHandler(GameActivity activity) {
+    public SerialHandler(Activity activity, SerialServiceHandler serialServiceHandler, Context context) {
         mActivity = new WeakReference<>(activity);
         user = UserClient.getInstance().getUser();
+        this.serialServiceHandler = serialServiceHandler;
+        this.context = context;
+
     }
 
-    public void setHandlers(MessagesHandler messagesHandler, GamePlayHandler gamePlayHandler,Map<String, String> usersNameMap)
+    public void setHandlers(MessagesHandler messagesHandler, GamePlayHandler gamePlayHandler, Map<String, String> usersNameMap,Map<String, String> idsMap)
     {
         this.gamePlayHandler = gamePlayHandler;
         this.messagesHandler = messagesHandler;
         this.usersNameMap = usersNameMap;
+        this.idsMap = idsMap;
+
+        //set RealTime db
+        FirebaseDatabase database = FirebaseDatabase.getInstance();
+        roomRef = database.getReference("Rooms");
     }
 
     @Override
@@ -55,32 +70,35 @@ public class SerialHandler extends Handler {
             case UsbService.MESSAGE_FROM_SERIAL_PORT:
 
                 String data = (String) msg.obj;
+                if(data.equals(""))
+                {
+                    return;
+                }
+
                 String[] datas = data.split(" ");
                 MessageType mType = GetMessageType(datas);
 
-           /*     if(gamePlayHandler != null && messagesHandler != null && !data.equals(""))
+                Toast.makeText(context,"MessageType: " + mType.toString() ,Toast.LENGTH_SHORT).show();
+                //Toast.makeText(context,"the first: " + datas[0] + " second: " + datas[1],Toast.LENGTH_SHORT).show();
+                Toast.makeText(context,"the data...: " + data ,Toast.LENGTH_SHORT).show();//serialServiceHandler.SendData("id");
+
+                if(mType == MessageType.ID)//setUp
                 {
-                    if(mType == MessageType.ID)//setUp
+                    if(isUpdateArduinoId)
                     {
-                        if(isUpdateArduinoId)
-                        {
-                            //can send data to Arduino that recived
-                        }
-                        else
-                        {
-                            database = FirebaseDatabase.getInstance();
-                            roomRef = database.getReference("Rooms");
-                            roomRef.child(gamePlayHandler.getRoomName()).child("ArduinoIds").child(datas[1]).setValue(user.getUserId()).addOnSuccessListener(new OnSuccessListener<Void>() {
-                                @Override
-                                public void onSuccess(Void aVoid) {
-                                    isUpdateArduinoId = true;
-                                    ListenToId();
-                                    //can send data to Arduino that recived
-                                }
-                            });
-                        }
+                        serialServiceHandler.SendData("ID;");
                     }
-                    else if(isUpdateArduinoId && mType == MessageType.HIT)//hit
+                    else
+                    {
+                        UserClient.getInstance().setGameId(datas[1]);
+                        Toast.makeText(context,"the new name: " + datas[1] ,Toast.LENGTH_SHORT).show();
+                        serialServiceHandler.SendData("ID;");
+                        isUpdateArduinoId = true;
+                    }
+                }
+                else if(gamePlayHandler != null && messagesHandler != null && !data.equals(""))
+                {
+                    if(isUpdateArduinoId && mType == MessageType.HIT)//hit
                     {
                         //mActivity.get().userNameHeader.append(data);//
 
@@ -90,7 +108,7 @@ public class SerialHandler extends Handler {
                     Hit(enemyArduinoId,score);
                     }
                 }
-*/
+
                 break;
                 case UsbService.CTS_CHANGE:
                     Toast.makeText(mActivity.get(), "CTS_CHANGE",Toast.LENGTH_LONG).show();
@@ -101,16 +119,17 @@ public class SerialHandler extends Handler {
         }
     }
 
-    private void ListenToId() {
-    }
-
     private void Hit(String enemyArduinoId, int score) {
-        
-        gamePlayHandler.AddToPlayerScore(user.getUserId(),score);
-        messagesHandler.SendMessage(new com.lazerwars2563.Class.Message(user.getUserId(),"got hit from - in the -"));
+        String enemyId = idsMap.get(enemyArduinoId);
 
-        //messagesHandler.SendMessage(new Message(enemy, "Hit "+ user.name + "and recived score: " + score));
-        //gamePlayHandler.AddToPlayerScore(enemyId,score);*/
+        //check that the enemy is online
+        if (gamePlayHandler.getOnlineMap().get(enemyId)) {
+            gamePlayHandler.AddToPlayerScore(user.getUserId(), score);
+            messagesHandler.SendMessage(new com.lazerwars2563.Class.Message(user.getUserId(), "got hit from " + usersNameMap.get(enemyId) + "in the -"));
+
+            messagesHandler.SendMessage(new com.lazerwars2563.Class.Message(enemyId, "Hit " + user.getUserName() + "and recived score: " + score));
+            gamePlayHandler.AddToPlayerScore(enemyId, score);
+        }
     }
 
     private static MessageType GetMessageType(String[] data) {
@@ -120,10 +139,10 @@ public class SerialHandler extends Handler {
         }
 
         String prefix = data[0];
-        if(prefix == "ID")
+        if(prefix.equals("ID"))
         {
             return MessageType.ID;
-        }else if(prefix == "HIT")
+        }else if(prefix.equals("HIT"))
         {
             return MessageType.HIT;
         }

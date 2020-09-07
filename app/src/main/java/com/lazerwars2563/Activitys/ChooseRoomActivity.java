@@ -38,6 +38,7 @@ import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QuerySnapshot;
 import com.lazerwars2563.BuildConfig;
 import com.lazerwars2563.Class.Room;
+import com.lazerwars2563.Handler.SerialServiceHandler;
 import com.lazerwars2563.R;
 import com.lazerwars2563.adapters.RoomsAdapter;
 import com.lazerwars2563.util.Constants;
@@ -55,6 +56,8 @@ public class ChooseRoomActivity extends AppCompatActivity {
 
     private RoomsAdapter mAdapter;
     private SearchView mSearchView;
+
+    private SerialServiceHandler serialServiceHandler;
 
     //start menu
     @Override
@@ -108,12 +111,21 @@ public class ChooseRoomActivity extends AppCompatActivity {
         //delete old files
         deletePlayerDirectory();
 
+        serialServiceHandler = new SerialServiceHandler(ChooseRoomActivity.this,ChooseRoomActivity.this,true);
+
         //button:
         findViewById(R.id.add_button).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 //change activity
-                launchNewRoomActivity();
+                if(UserClient.getInstance().getGameId().equals("None"))
+                {
+                    Toast.makeText(ChooseRoomActivity.this,"Poor Usb connation, please wait and try agine if it isnt working please replug cable",Toast.LENGTH_SHORT).show();
+                }
+                else
+                {
+                    launchNewRoomActivity();
+                }
             }
         });
 
@@ -139,13 +151,7 @@ public class ChooseRoomActivity extends AppCompatActivity {
                                           recyclerView.setAdapter(mAdapter);
                                       }
                                   });
-        /*query.get().addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
-            @Override
-            public void onComplete(@NonNull Task<QuerySnapshot> task) {
-                mAdapter = new RoomsAdapter(task.getResult().toObjects(Room.class), ChooseRoomActivity.this);
-                recyclerView.setAdapter(mAdapter);
-            }
-        });*/
+
         mSearchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
@@ -161,13 +167,15 @@ public class ChooseRoomActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onStop() {
-        super.onStop();
-    }//stop listening?
+    protected void onPause() {
+        super.onPause();
+        serialServiceHandler.OnPauseSerial();
+    }
 
     @Override
-    protected void onStart() {
-        super.onStart();
+    protected void onPostResume() {
+        super.onPostResume();
+        serialServiceHandler.OnResumeSerial();
     }
 
     @Override

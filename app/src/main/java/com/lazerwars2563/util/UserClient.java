@@ -2,12 +2,15 @@ package com.lazerwars2563.util;
 
 import com.lazerwars2563.Class.UserDetails;
 
+import java.util.Map;
+
 public class UserClient{
 
     private static UserClient userInstance;
     private UserDetails user;
     private int currentScore;
     private String currentRoom;
+    private String gameId;
 
     public void setUser(UserDetails user)
     {
@@ -19,6 +22,14 @@ public class UserClient{
     public UserDetails getUser()
     {
         return userInstance.user;
+    }
+
+    public String getGameId() {
+        return gameId;
+    }
+
+    public void setGameId(String gameId) {
+        this.gameId = gameId;
     }
 
     public int getCurrentScore() {

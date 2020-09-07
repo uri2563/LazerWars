@@ -10,13 +10,16 @@ import android.widget.Button;
 import android.widget.Filter;
 import android.widget.Filterable;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.lazerwars2563.Activitys.ChooseRoomActivity;
 import com.lazerwars2563.Activitys.WaitingRoomActivity;
 import com.lazerwars2563.Class.Room;
 import com.lazerwars2563.R;
+import com.lazerwars2563.util.UserClient;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -54,11 +57,19 @@ public class RoomsAdapter extends RecyclerView.Adapter<RoomsAdapter.RoomHolders>
             holder.buttonEnter.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    Intent intent = new Intent(thisContext, WaitingRoomActivity.class);
-                    intent.putExtra("name",item.getName());
-                    intent.putExtra("game",item.getGame());
-                    intent.putExtra("admin", false);
-                    thisContext.startActivity(intent);
+                    //change activity
+                    if(UserClient.getInstance().getGameId().equals("None"))
+                    {
+                        Toast.makeText(thisContext,"Poor Usb connation, please wait and try agine if it isnt working please replug cable",Toast.LENGTH_SHORT).show();
+                    }
+                    else
+                    {
+                        Intent intent = new Intent(thisContext, WaitingRoomActivity.class);
+                        intent.putExtra("name",item.getName());
+                        intent.putExtra("game",item.getGame());
+                        intent.putExtra("admin", false);
+                        thisContext.startActivity(intent);
+                    }
                 }
             });
         }

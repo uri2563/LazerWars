@@ -81,6 +81,7 @@ public class MainActivity extends AppCompatActivity {
         FirebaseUser userFb = FirebaseAuth.getInstance().getCurrentUser();
         UserDetails user = new UserDetails(userFb.getDisplayName(),userFb.getUid());
         UserClient.getInstance().setUser(user);
+        UserClient.getInstance().setGameId("None");
     }
 
     private void LeaveToNextPage() {

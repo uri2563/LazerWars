@@ -3,19 +3,29 @@ package com.lazerwars2563.Class;
 public class PlayerViewer {
     String name;
     String id;
+    String arduinoId;
     int team;
 
     public  PlayerViewer()
     {}
 
-    public PlayerViewer(String name, String id, int team) {
+    public PlayerViewer(String name, String id, int team, String arduinoId) {
         this.name = name;
         this.id = id;
         this.team = team;
+        this.arduinoId = arduinoId;
     }
     public PlayerViewer(String name, String id) {
         this.name = name;
         this.id = id;
+    }
+
+    public String getArduinoId() {
+        return arduinoId;
+    }
+
+    public void setArduinoId(String arduinoId) {
+        this.arduinoId = arduinoId;
     }
 
     public int getTeam() {

@@ -352,6 +352,7 @@ public class WaitingRoomActivity extends AppCompatActivity {
         players.put("name",user.getUserName());
         players.put("id",user.getUserId());
         players.put("team", 0);
+        players.put("arduinoId", UserClient.getInstance().getGameId());
 
         roomRef.collection("Players").document(user.getUserId()).set(players);
         return true;

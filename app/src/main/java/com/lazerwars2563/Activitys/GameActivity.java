@@ -100,6 +100,7 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
     private Map<String, Integer> teamsMap;
     private Map<String, String> usersNameMap;
     private Map<String, String> imageMap;
+    private Map<String, String> usersIdMap;
 
     private String roomName;
     private String gameType;
@@ -175,7 +176,7 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         spinnerType.setAdapter(spinnerAdapter);
         spinnerType.setOnItemSelectedListener(new AudioSpinnerClass());
 
-        serialServiceHandler = new SerialServiceHandler(this,this);
+        serialServiceHandler = new SerialServiceHandler(this,this,false);
         //put all other actions onMapReady
     }
 
@@ -210,7 +211,7 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         RecyclerView recyclerView = findViewById(R.id.recyclerview_messages);
         messagesHandler = new MessagesHandler(GameActivity.this, recyclerView, roomRef, roomName, userData);
 
-        gamePlayHandler = new GamePlayHandler(roomStoreRef, timerText, roomRef, userData, roomName, isAdmin, messagesHandler,this,usersNameMap,gameDatabaseHandler, serialServiceHandler,teamsMap);
+        gamePlayHandler = new GamePlayHandler(roomStoreRef, timerText, roomRef, userData, roomName, isAdmin, messagesHandler,this,usersNameMap,gameDatabaseHandler, serialServiceHandler,teamsMap,usersIdMap);
         gamePlayHandler.SetStartListener(gameMakerHandler);
 
     }
@@ -291,6 +292,7 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
 
         teamsMap = new HashMap<>();
         usersNameMap = new HashMap<>();
+        usersIdMap = new HashMap<>();
 
         roomStoreRef.collection("Players").get().addOnCompleteListener(new OnCompleteListener<QuerySnapshot>() {
             @Override
@@ -305,6 +307,8 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
                         }
                         teamsMap.put(playerInfo.getId(), playerInfo.getTeam());
                         usersNameMap.put(playerInfo.getId(), playerInfo.getName());
+                        usersIdMap.put(playerInfo.getArduinoId(),playerInfo.getId());
+                        //Toast.makeText(GameActivity.this,playerInfo.getArduinoId(), Toast.LENGTH_SHORT).show();/////
                         LoadImage(playerInfo.getId());
                     }
                 } else {
