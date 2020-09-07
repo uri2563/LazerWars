@@ -132,8 +132,6 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         setContentView(R.layout.activity_game);
         setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_NOSENSOR);//dont allow rotation
 
-        serialServiceHandler = new SerialServiceHandler(this,this);
-
         //set RealTime db
         database = FirebaseDatabase.getInstance();
         roomRef = database.getReference("Rooms");
@@ -177,6 +175,7 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         spinnerType.setAdapter(spinnerAdapter);
         spinnerType.setOnItemSelectedListener(new AudioSpinnerClass());
 
+        serialServiceHandler = new SerialServiceHandler(this,this);
         //put all other actions onMapReady
     }
 
@@ -211,7 +210,7 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         RecyclerView recyclerView = findViewById(R.id.recyclerview_messages);
         messagesHandler = new MessagesHandler(GameActivity.this, recyclerView, roomRef, roomName, userData);
 
-        gamePlayHandler = new GamePlayHandler(roomStoreRef, timerText, roomRef, userData, roomName, isAdmin, messagesHandler,this,usersNameMap,gameDatabaseHandler, serialServiceHandler);
+        gamePlayHandler = new GamePlayHandler(roomStoreRef, timerText, roomRef, userData, roomName, isAdmin, messagesHandler,this,usersNameMap,gameDatabaseHandler, serialServiceHandler,teamsMap);
         gamePlayHandler.SetStartListener(gameMakerHandler);
 
     }

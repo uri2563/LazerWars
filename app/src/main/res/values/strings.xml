@@ -25,5 +25,11 @@
         <item>Team Green</item>
         <item>Team Yellow</item>
     </string-array>
+
+    <integer-array name="Guns">
+        <item>10</item>
+    </integer-array>
+
+
     <string name="title_activity_maps">Map</string>
 </resources>

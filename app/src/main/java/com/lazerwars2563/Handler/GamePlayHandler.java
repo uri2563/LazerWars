@@ -54,8 +54,10 @@ public class GamePlayHandler
 
     private int playersNum;//current Logged In players!
 
+    private Map<String, Integer> teamsMap;
+
     public GamePlayHandler(DocumentReference roomStoreRef, TextView timerText, DatabaseReference roomRef, PlayerViewer userData, String roomName,
-                           boolean isAdmin, MessagesHandler messagesHandler, Context context, Map<String, String> usersNameMap,GameDatabaseHandler gameDatabaseHandler, SerialServiceHandler serialServiceHandler) {
+                           boolean isAdmin, MessagesHandler messagesHandler, Context context, Map<String, String> usersNameMap,GameDatabaseHandler gameDatabaseHandler, SerialServiceHandler serialServiceHandler, Map<String, Integer> teamsMap) {
         Log.d(TAG, "Game time in milisec is: " + timeLeftMiliSeconds);
         this.roomRef = roomRef;
         this.userData = userData;
@@ -67,6 +69,7 @@ public class GamePlayHandler
         this.usersNameMap = usersNameMap;
         this.roomStoreRef = roomStoreRef;
         this.serialServiceHandler = serialServiceHandler;
+        this.teamsMap = teamsMap;
 
         roomRef.child(roomName).child("RoomState").setValue(States.SETUP);
         AddToPlayerScore(userData.getId(),0);//score 0
@@ -82,6 +85,11 @@ public class GamePlayHandler
                 SetReady();
             }
         });
+    }
+
+    public String getRoomName()
+    {
+        return roomName;
     }
 
     private void SetReady()
@@ -220,14 +228,27 @@ public class GamePlayHandler
     }
 
     private void StartConnectionSerialListener() {
+        serialServiceHandler.setHandler(messagesHandler,this,usersNameMap);
+
         roomRef.child(roomName).child("PlayersState").child(userData.getId()).setValue(serialServiceHandler.isConnected());
+        initArduino();
+
         serialServiceHandler.setListener(new SerialServiceHandler.ChangeListener() {
             @Override
             public void onChange() {
                 Log.d(TAG,"StartConnectionSerialListener stage: "+serialServiceHandler.isConnected());
                 roomRef.child(roomName).child("PlayersState").child(userData.getId()).setValue(serialServiceHandler.isConnected());
+                initArduino();
             }
         });
+    }
+
+    private void initArduino()
+    {
+        if(serialServiceHandler.isConnected()) {
+            Toast.makeText(context, "initArduino", Toast.LENGTH_SHORT).show();
+            serialServiceHandler.SendData("StartGame" + teamsMap.toString());
+        }
     }
 
     //keeps track on number of players connected

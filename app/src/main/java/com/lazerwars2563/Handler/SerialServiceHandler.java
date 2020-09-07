@@ -28,6 +28,8 @@ import com.lazerwars2563.R;
 import com.lazerwars2563.services.UsbService;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 import static com.firebase.ui.auth.AuthUI.getApplicationContext;
@@ -47,16 +49,21 @@ public class SerialServiceHandler {
         this.context = context;
         serialHandler = new SerialHandler((GameActivity) activity);
         gameActivity = (GameActivity) activity;
-
     }
 
-    public void SendData(String data)
+    public void setHandler(MessagesHandler messagesHandler, GamePlayHandler gamePlayHandler,Map<String, String> usersNameMap)
     {
-        if(usbService == null)
+        serialHandler.setHandlers(messagesHandler,gamePlayHandler,usersNameMap);
+    }
+
+    public boolean SendData(String data)
+    {
+        if(usbService == null || !connected)
         {
-            return;
+            return false;
         }
         usbService.write(data.getBytes());
+        return true;
     }
 
     private void setFilters() {
