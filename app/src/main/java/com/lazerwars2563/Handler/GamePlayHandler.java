@@ -1,11 +1,15 @@
 package com.lazerwars2563.Handler;
 
-import android.content.BroadcastReceiver;
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Debug;
+import android.os.Bundle;
 import android.os.Handler;
+import android.os.Parcelable;
 import android.util.Log;
+import android.view.View;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -20,13 +24,16 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
-import com.google.firebase.firestore.ListenerRegistration;
 import com.lazerwars2563.Activitys.ChooseRoomActivity;
-import com.lazerwars2563.Activitys.WaitingRoomActivity;
+import com.lazerwars2563.Activitys.GameActivity;
+import com.lazerwars2563.Activitys.ScoreBoardActivity;
 import com.lazerwars2563.Class.Message;
 import com.lazerwars2563.Class.PlayerViewer;
-import com.lazerwars2563.services.UsbService;
+import com.lazerwars2563.R;
+import com.lazerwars2563.util.UserClient;
 
+import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -45,6 +52,7 @@ public class GamePlayHandler
     private String roomName;
     private boolean isAdmin;
     private Context context;
+    private Activity activity;
     private Map<String, String> usersNameMap;
 
     private long timeLeftMiliSeconds;
@@ -59,9 +67,11 @@ public class GamePlayHandler
     private Map<String, String> idsMap;
     private Map<String,Boolean> onlineMap;
 
+    private boolean withTeams;
+
     public GamePlayHandler(DocumentReference roomStoreRef, TextView timerText, DatabaseReference roomRef, PlayerViewer userData, String roomName,
                            boolean isAdmin, MessagesHandler messagesHandler, Context context, Map<String, String> usersNameMap,GameDatabaseHandler gameDatabaseHandler, SerialServiceHandler serialServiceHandler,
-                           Map<String, Integer> teamsMap,  Map<String, String> idsMap) {
+                           Map<String, Integer> teamsMap,  Map<String, String> idsMap, Activity activity) {
         Log.d(TAG, "Game time in milisec is: " + timeLeftMiliSeconds);
         this.roomRef = roomRef;
         this.userData = userData;
@@ -75,6 +85,9 @@ public class GamePlayHandler
         this.serialServiceHandler = serialServiceHandler;
         this.teamsMap = teamsMap;
         this.idsMap = idsMap;
+        this.activity = activity;
+
+        withTeams = true;//Debug - change
 
         roomRef.child(roomName).child("RoomState").setValue(States.SETUP);
         AddToPlayerScore(userData.getId(),0);//score 0
@@ -117,13 +130,12 @@ public class GamePlayHandler
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 currentState = States.valueOf(snapshot.getValue().toString());
                 Log.d(TAG, "ListenToRoomState: Game State Changed to: " + currentState.toString());
-                if (currentState == States.START)
-                {
+                if (currentState == States.START) {
                     StartGame();
-                }
-                else if(currentState == States.ADMIN_CHANGE)
-                {
+                } else if (currentState == States.ADMIN_CHANGE) {
                     CreateAdmin();
+                } else if (currentState == States.END) {
+                    ((GameActivity)activity).DestroyHandlers(true);
                 }
             }
 
@@ -221,7 +233,7 @@ public class GamePlayHandler
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
-                if(currentState ==  States.SETUP)
+                if(isAdmin && currentState ==  States.SETUP)
                 {
                     Log.d(TAG,"SetStartListener: start game");
                     messagesHandler.SendMessage(new Message("all", "Start Game!!!"));
@@ -274,12 +286,14 @@ public class GamePlayHandler
         timer.setListener(new CustomTimer.ChangeListener() {
             @Override
             public void onChange() {
-                //Debug end game
+                //end game
+                //update arduino that the game ended
+                ChangeGameState(States.END);
             }
         });
     }
 
-    public void QuitGame()
+    public void QuitGame(boolean ended)
     {
         if(timer != null) {
             timer.DestroyTimer();
@@ -308,13 +322,61 @@ public class GamePlayHandler
         catch (Exception e)
         { Log.e(TAG,e.toString());}
 
-        if(playersNum == 1)
+        if(ended)
         {
-            DestroyGame();
+            roomRef.child(roomName).child("Scores").addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot snapshot) {
+
+                    HashMap<Integer, String> scores = new HashMap<>();
+                    HashMap<Integer, Integer> teamsScores = new HashMap<>();
+
+                    for (DataSnapshot postSnapshot : snapshot.getChildren()) {
+                        String id = postSnapshot.getKey();
+                        int score = postSnapshot.getValue(Integer.class);
+
+                        scores.put(score, usersNameMap.get(id));//add player to score list
+
+                        int team = teamsMap.get(id);
+                        if (teamsScores.containsKey(team))//if team is in list
+                        {
+                            teamsScores.put(team, teamsScores.get(team) + score);//add to field
+                        } else//if team isnt in list
+                        {
+                            teamsScores.put(team, score);//new field
+                        }
+                    }
+
+                   if(playersNum == 1)
+                    {
+                            DestroyGame();
+                    }
+
+                    UserClient.getInstance().setScores(scores);
+                    UserClient.getInstance().setTeamsScores(teamsScores);
+
+                    Intent scoreBoardIntent = new Intent(context,ScoreBoardActivity.class);
+                    scoreBoardIntent.putExtra("withTeams",withTeams);
+
+                    context.startActivity(scoreBoardIntent);
+                }
+
+                @Override
+                public void onCancelled(@NonNull DatabaseError error) {
+
+                }
+            });
+        }
+        else
+        {
+            if(playersNum == 1)
+            {
+                DestroyGame();
+            }
+            Intent intent = new Intent(context, ChooseRoomActivity.class);
+            context.startActivity(intent);
         }
 
-        Intent intent = new Intent(context, ChooseRoomActivity.class);
-        context.startActivity(intent);
     }
 
     private void DestroyGame() {

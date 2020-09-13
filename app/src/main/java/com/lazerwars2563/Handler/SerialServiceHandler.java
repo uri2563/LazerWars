@@ -175,7 +175,7 @@ public class SerialServiceHandler {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         if(!setUp) {
-                            gameActivity.DestroyHandlers();
+                            gameActivity.DestroyHandlers(false);
                         }
                         else
                         {

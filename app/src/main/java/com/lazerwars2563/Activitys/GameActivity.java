@@ -65,6 +65,7 @@ import com.lazerwars2563.Class.UserDetails;
 import com.lazerwars2563.R;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -211,7 +212,8 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         RecyclerView recyclerView = findViewById(R.id.recyclerview_messages);
         messagesHandler = new MessagesHandler(GameActivity.this, recyclerView, roomRef, roomName, userData);
 
-        gamePlayHandler = new GamePlayHandler(roomStoreRef, timerText, roomRef, userData, roomName, isAdmin, messagesHandler,this,usersNameMap,gameDatabaseHandler, serialServiceHandler,teamsMap,usersIdMap);
+        gamePlayHandler = new GamePlayHandler(roomStoreRef, timerText, roomRef, userData, roomName, isAdmin, messagesHandler,this,
+                usersNameMap,gameDatabaseHandler, serialServiceHandler,teamsMap,usersIdMap,this);
         gamePlayHandler.SetStartListener(gameMakerHandler);
 
     }
@@ -257,6 +259,7 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
                 return false;
             }
         });
+
         roomRef.child(roomName).child("chat").addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
@@ -378,7 +381,7 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
 
     @Override
     protected void onDestroy() {
-        DestroyHandlers();
+        DestroyHandlers(false);//Debug?
         mapView.onDestroy();
         super.onDestroy();
     }
@@ -399,7 +402,7 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
                 .setPositiveButton("yes", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        DestroyHandlers();
+                        DestroyHandlers(false);
                     }
                 })
                 .setNegativeButton("No", new DialogInterface.OnClickListener() {
@@ -412,12 +415,10 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         alertDialog.show();
     }
 
-    public void DestroyHandlers()
+    public void DestroyHandlers(boolean isEnded)
     {
         gameDatabaseHandler.DestroyHendler();
         gameMakerHandler.DestroyHandler();
-        //serialServiceHandler.DestroyHendler();
-        gamePlayHandler.QuitGame();
+        gamePlayHandler.QuitGame(isEnded);
     }
-
 }

@@ -92,7 +92,7 @@ public class SerialHandler extends Handler {
                     {
                         UserClient.getInstance().setGameId(datas[1]);
                         Toast.makeText(context,"the new name: " + datas[1] ,Toast.LENGTH_SHORT).show();
-                        serialServiceHandler.SendData("ID;");
+                        serialServiceHandler.SendData("hs");
                         isUpdateArduinoId = true;
                     }
                 }
