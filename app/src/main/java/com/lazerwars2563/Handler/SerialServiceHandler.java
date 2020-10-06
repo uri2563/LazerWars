@@ -25,6 +25,7 @@ import androidx.appcompat.app.AlertDialog;
 import com.google.firebase.database.DatabaseReference;
 import com.lazerwars2563.Activitys.CreateNewRoomActivity;
 import com.lazerwars2563.Activitys.GameActivity;
+import com.lazerwars2563.Activitys.MainActivity;
 import com.lazerwars2563.Activitys.WaitingRoomActivity;
 import com.lazerwars2563.Class.PlayerViewer;
 import com.lazerwars2563.R;
@@ -179,7 +180,9 @@ public class SerialServiceHandler {
                         }
                         else
                         {
-                            Toast.makeText(context,"ActionNoUsb: Dubag return", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(context,"ActionNoUsb: Dubag change return", Toast.LENGTH_SHORT).show();
+                            Intent intent = new Intent(context, MainActivity.class);
+                            context.startActivity(intent);
                         }
                     }
                 });

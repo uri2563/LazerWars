@@ -42,7 +42,7 @@ public class GameMapHandler implements View.OnTouchListener{
 
     private FusedLocationProviderClient fusedLocationProviderClient;
     private LatLngBounds mapBoundary;
-    float window_height;
+    float window_width;
 
 
 
@@ -93,7 +93,7 @@ public class GameMapHandler implements View.OnTouchListener{
 
         DisplayMetrics displayMetrics = new DisplayMetrics();
         ((Activity)context).getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
-        window_height = displayMetrics.heightPixels;
+        window_width = displayMetrics.widthPixels;
 
         dragView.setOnTouchListener(this);
     }
@@ -142,11 +142,11 @@ public class GameMapHandler implements View.OnTouchListener{
 
 
     int map_current_weight = 50;
-    private void moveMapAnimation(float drag, float height){
+    private void moveMapAnimation(float drag, float width){
         int map_new_weight = (int) drag;
-        Log.d(TAG, "window_height - map_new_weight: " + (window_height - map_new_weight));
+        Log.d(TAG, "window_height - map_new_weight: " + (window_width - map_new_weight));
 
-        if(window_height - map_new_weight >= 50)//dont let the map dissapear
+        if(window_width - map_new_weight >= 50)//dont let the map dissapear
         {
             ViewWeightAnimationWrapper mapAnimationWrapper = new ViewWeightAnimationWrapper(mMapContainer);
             ObjectAnimator mapAnimation = ObjectAnimator.ofFloat(mapAnimationWrapper,
@@ -158,8 +158,8 @@ public class GameMapHandler implements View.OnTouchListener{
             ViewWeightAnimationWrapper recyclerAnimationWrapper = new ViewWeightAnimationWrapper(mMainContainer);
             ObjectAnimator recyclerAnimation = ObjectAnimator.ofFloat(recyclerAnimationWrapper,
                     "weight",
-                    window_height - height - map_new_weight,
-                    window_height - height - map_current_weight);
+                    window_width - width - map_new_weight,
+                    window_width - width - map_current_weight);
             recyclerAnimation.setDuration(0);
             map_current_weight = map_new_weight;
             recyclerAnimation.start();
@@ -167,17 +167,17 @@ public class GameMapHandler implements View.OnTouchListener{
         }
     }
 
-    private float dY;
+    private float dX;
     @Override
     public boolean onTouch(View v, MotionEvent event) {
         if (v.getId() == R.id.dragView) {
             switch (event.getAction())
             {
                 case MotionEvent.ACTION_DOWN:
-                    dY = v.getY() - event.getRawY();
+                    dX = v.getX() - event.getRawX();
 
                 case MotionEvent.ACTION_MOVE:
-                    moveMapAnimation(event.getRawY() + dY, v.getHeight());
+                    moveMapAnimation(event.getRawX() + dX, v.getWidth());
             }
 
             return true;

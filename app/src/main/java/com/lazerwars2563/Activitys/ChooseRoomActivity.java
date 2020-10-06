@@ -183,12 +183,13 @@ public class ChooseRoomActivity extends AppCompatActivity {
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
 
-        builder.setMessage("Are you sure you want to LogOut?")
+        builder.setMessage("Are you sure you want to go to main menu?")
                 .setCancelable(false)
                 .setPositiveButton("yes", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        LogOut();
+                        Intent intent = new Intent(ChooseRoomActivity.this, MainActivity.class);
+                        startActivity(intent);
                     }
                 })
                 .setNegativeButton("No", new DialogInterface.OnClickListener() {

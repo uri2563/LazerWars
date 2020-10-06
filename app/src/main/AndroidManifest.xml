@@ -35,7 +35,8 @@
         android:theme="@style/AppTheme">
         <activity android:name=".Activitys.ScoreBoardActivity"></activity>
         <activity android:name=".Activitys.ProfileActivity" />
-        <activity android:name=".Activitys.GameActivity" />
+        <activity android:name=".Activitys.GameActivity"
+            android:screenOrientation="landscape"/>
         <!--
              The API key for Google Maps-based APIs is defined as a string resource.
              (See the file "res/values/google_maps_api.xml").

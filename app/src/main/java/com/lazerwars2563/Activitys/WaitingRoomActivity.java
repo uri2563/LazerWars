@@ -38,6 +38,7 @@ import com.firebase.ui.firestore.FirestoreRecyclerAdapter;
 import com.firebase.ui.firestore.FirestoreRecyclerOptions;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
+import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
@@ -117,6 +118,9 @@ public class WaitingRoomActivity extends AppCompatActivity {
 
     private ListenerRegistration waitingHandler;
     private ListenerRegistration playerListener;
+
+    private boolean withTeams = true;
+    private boolean showAll;
 
 
     //leaving waiting Room
@@ -291,7 +295,7 @@ public class WaitingRoomActivity extends AppCompatActivity {
 
                     private void ChangeToChooseState() {
                         state = STATES.CHOOSING;
-                        if (admin) {
+                        if (admin && withTeams) {
                             randomTeamButton.setVisibility(View.VISIBLE);
                         }
                         adapter.notifyDataSetChanged();
@@ -347,6 +351,17 @@ public class WaitingRoomActivity extends AppCompatActivity {
         db = FirebaseFirestore.getInstance();
         roomRef = db.collection("Rooms").document(room);
 
+        //get show all info
+        roomRef.get().addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
+            @Override
+            public void onSuccess(DocumentSnapshot documentSnapshot) {
+                if(documentSnapshot != null)
+                {
+                    showAll = documentSnapshot.getBoolean("showAll");
+                }
+            }
+        });
+
         //set playersData in db
         Map<String, Object> players = new HashMap<>();
         players.put("name",user.getUserName());
@@ -393,6 +408,11 @@ public class WaitingRoomActivity extends AppCompatActivity {
         room = extras.getString("name");
         admin = extras.getBoolean("admin");
         roomType = extras.getString("game");
+
+        if(roomType.equals("capture the flag"))
+        {
+            withTeams = false;
+        }
     }
 
     private void InitViews() {
@@ -429,7 +449,10 @@ public class WaitingRoomActivity extends AppCompatActivity {
         spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                teamsList.put(model.getId(),position);
+                if(withTeams)
+                {
+                    teamsList.put(model.getId(),position);
+                }
             }
             @Override
             public void onNothingSelected(AdapterView<?> parent) {
@@ -443,6 +466,8 @@ public class WaitingRoomActivity extends AppCompatActivity {
         intent.putExtra("name",room);
         intent.putExtra("game",roomType);
         intent.putExtra("admin",admin);
+        intent.putExtra("showAll",showAll);
+
         //check how to pass map data!!!!
         StopListeners();
         startActivity(intent);
@@ -493,7 +518,10 @@ public class WaitingRoomActivity extends AppCompatActivity {
                 //set choosing state
                 if(state.equals(STATES.CHOOSING) && admin) {
                     holder.kickButton.setVisibility(View.INVISIBLE);
-                    holder.spinnerTeams.setVisibility(View.VISIBLE);
+                    if(withTeams)
+                    {
+                        holder.spinnerTeams.setVisibility(View.VISIBLE);
+                    }
 
                     //random button pressed
                     if (random)
@@ -513,15 +541,23 @@ public class WaitingRoomActivity extends AppCompatActivity {
                     }
 
                     setTeamSpinner(holder.spinnerTeams, model);
+
+                    if(!withTeams)
+                    {
+                        teamsList.put(model.getId(),position);
+                    }
                 }
                 //show teams
                 else if(state.equals(STATES.SHOW_TEAMS))
                 {
                     holder.kickButton.setVisibility(View.INVISIBLE);
                     holder.spinnerTeams.setVisibility(View.INVISIBLE);
-                    //changes card color by team!
-                    holder.playerCardView.setCardBackgroundColor(teamsColorArray[model.getTeam()]);
 
+                    if(withTeams)
+                    {
+                        //changes card color by team!
+                        holder.playerCardView.setCardBackgroundColor(teamsColorArray[model.getTeam()]);
+                    }
                 }
 
                 holder.kickButton.setOnClickListener(new View.OnClickListener() {
@@ -535,7 +571,11 @@ public class WaitingRoomActivity extends AppCompatActivity {
              private void ImageFromPath(String id, @NonNull final PlayersHolder holder) {
                  ContextWrapper cw = new ContextWrapper(getApplicationContext());
                  File directory = cw.getDir("imageDir", Context.MODE_PRIVATE);
-                 File myFile = new File(directory, id + ".jpg");
+                 File myFile = new File(directory
+
+
+
+                         , id + ".jpg");
                  Bitmap myBitmap = BitmapFactory.decodeFile(myFile.getAbsolutePath());
                  holder.playerImage.setImageBitmap(myBitmap);
              }
@@ -622,6 +662,7 @@ public class WaitingRoomActivity extends AppCompatActivity {
         }
     }
 
+    //gets all the needed prem
     private static final int REQUEST_CODE = 331;
     private void getPermission() {
         Log.d(TAG,"requesting premissions");
@@ -647,6 +688,7 @@ public class WaitingRoomActivity extends AppCompatActivity {
         }
     }
 
+    //checks if the services working
     public boolean isServicesOK(){
         Log.d(TAG, "isServicesOK: checking google services version");
 

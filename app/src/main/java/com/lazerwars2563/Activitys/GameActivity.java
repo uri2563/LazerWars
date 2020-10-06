@@ -128,11 +128,16 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
     private int[] teamsColorArray;
 
     public TextView userNameHeader;
+
+    public static GameActivity Instance;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_game);
-        setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_NOSENSOR);//dont allow rotation
+
+        //setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_NOSENSOR);//dont allow rotation - change in manifest: <activity android:name=".Activitys.GameActivity" android:screenOrientation="landscape"/>
+        Instance = this;
 
         //set RealTime db
         database = FirebaseDatabase.getInstance();
@@ -143,6 +148,7 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         roomName = extras.getString("name");
         gameType = extras.getString("game");
         isAdmin = extras.getBoolean("admin");
+        showAll = extras.getBoolean("showAll");
 
         UserDetails();
 
@@ -285,13 +291,6 @@ public class GameActivity extends FragmentActivity implements OnMapReadyCallback
         // Access a Cloud FireStore instance from your Activity
         db = FirebaseFirestore.getInstance();
         roomStoreRef = db.collection("Rooms").document(roomName);
-        // get show all field - show all players on map or only my team
-        roomStoreRef.get().addOnCompleteListener(new OnCompleteListener<DocumentSnapshot>() {
-            @Override
-            public void onComplete(@NonNull Task<DocumentSnapshot> task) {
-                showAll = task.getResult().getBoolean("showAll");
-            }
-        });
 
         teamsMap = new HashMap<>();
         usersNameMap = new HashMap<>();
